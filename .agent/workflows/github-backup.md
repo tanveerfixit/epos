@@ -11,7 +11,7 @@ This workflow helps you keep your code safe on GitHub. All commands are designed
 1. Initialize and Link to GitHub:
 ```powershell
 & "C:\Program Files\Git\bin\git.exe" init
-& "C:\Program Files\Git\bin\git.exe" remote add origin https://github.com/tanveerfixit/epos.git
+& "C:\Program Files\Git\bin\git.exe" remote add origin https://github.com/tanveerfixit/data-epos.git
 & "C:\Program Files\Git\bin\git.exe" branch -M main
 ```
 
