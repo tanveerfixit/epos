@@ -28,8 +28,9 @@ router.get('/', async (req: any, res) => {
 });
 
 // GET /api/products/:id
-router.get('/:id', async (req, res) => {
+router.get('/:id', async (req: any, res) => {
   try {
+    const businessId = req.user.business_id;
     const product = await queryOne(`
       SELECT s.id, p.name as product_name, s.sku_code, s.barcode,
              s.selling_price, s.cost_price, p.product_type,
@@ -39,35 +40,36 @@ router.get('/:id', async (req, res) => {
       JOIN products p ON s.product_id = p.id
       LEFT JOIN categories c ON p.category_id = c.id
       LEFT JOIN manufacturers m ON p.manufacturer_id = m.id
-      WHERE s.id = ?
-    `, [req.params.id]);
+      WHERE s.id = ? AND p.business_id = ?
+    `, [req.params.id, businessId]);
     if (!product) return res.status(404).json({ error: 'Product not found' });
     const stock = await query(`
       SELECT b.name as branch_name, b.id as branch_id, COALESCE(bs.quantity,0) as quantity
       FROM branches b
       LEFT JOIN branch_stock bs ON b.id = bs.branch_id AND bs.sku_id = ?
-      WHERE b.business_id = 1
-    `, [req.params.id]);
+      WHERE b.business_id = ?
+    `, [req.params.id, businessId]);
     res.json({ ...product, stock });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
 // PUT /api/products/:id
-router.put('/:id', async (req, res) => {
+router.put('/:id', async (req: any, res) => {
   const { product_name, category_id, manufacturer_id, sku_code, barcode, selling_price, cost_price, product_type } = req.body;
   const skuId = req.params.id;
+  const businessId = req.user.business_id;
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    const [skuRows] = await conn.execute('SELECT * FROM product_skus WHERE id = ?', [skuId]);
+    const [skuRows] = await conn.execute('SELECT s.*, p.business_id FROM product_skus s JOIN products p ON s.product_id = p.id WHERE s.id = ? AND p.business_id = ?', [skuId, businessId]);
     const sku = (skuRows as any[])[0];
-    if (!sku) throw new Error('SKU not found');
+    if (!sku) throw new Error('Product not found in your business catalog');
     await conn.execute('UPDATE product_skus SET sku_code=?,barcode=?,selling_price=?,cost_price=? WHERE id=?',
       [sku_code, barcode, selling_price, cost_price, skuId]);
     await conn.execute('UPDATE products SET name=?,category_id=?,manufacturer_id=?,product_type=? WHERE id=?',
       [product_name, category_id, manufacturer_id, product_type, sku.product_id]);
     await conn.execute('INSERT INTO product_activity (sku_id,user_id,activity,details) VALUES (?,?,?,?)',
-      [skuId, 1, 'Product Updated', 'Product details updated via edit form']);
+      [skuId, req.userId, 'Product Updated', 'Product details updated via edit form']);
     await conn.commit();
     res.json({ success: true });
   } catch (e: any) {
@@ -77,14 +79,15 @@ router.put('/:id', async (req, res) => {
 });
 
 // POST /api/products
-router.post('/', async (req, res) => {
+router.post('/', async (req: any, res) => {
   const { name, category_id, manufacturer_id, selling_price, cost_price, product_type, sku_code, barcode, allow_overselling } = req.body;
+  const businessId = req.user.business_id;
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
     const [pr] = await conn.execute(
       'INSERT INTO products (business_id,name,category_id,manufacturer_id,product_type,allow_overselling) VALUES (?,?,?,?,?,?)',
-      [1, name, category_id, manufacturer_id, product_type, allow_overselling === false ? 0 : 1]
+      [businessId, name, category_id, manufacturer_id, product_type, allow_overselling === false ? 0 : 1]
     );
     const productId = (pr as any).insertId;
     let finalSku = sku_code?.trim() || ('SKU-' + Math.random().toString(36).substring(2, 9).toUpperCase());
@@ -94,7 +97,7 @@ router.post('/', async (req, res) => {
     );
     const skuId = (sr as any).insertId;
     await conn.execute('INSERT INTO product_activity (sku_id,user_id,activity,details) VALUES (?,?,?,?)',
-      [skuId, 1, 'Product Created', `Product "${name}" created with SKU ${finalSku}`]);
+      [skuId, req.userId, 'Product Created', `Product "${name}" created with SKU ${finalSku}`]);
     await conn.commit();
     res.json({ id: skuId });
   } catch (e: any) {
@@ -104,10 +107,10 @@ router.post('/', async (req, res) => {
 });
 
 // DELETE /api/products/:id
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', async (req: any, res) => {
   try {
-    await execute('UPDATE products SET deleted_at=NOW() WHERE id=(SELECT product_id FROM product_skus WHERE id=?)', [req.params.id]);
-    await execute('UPDATE products p JOIN product_skus s ON p.id=s.product_id SET p.deleted_at=NOW() WHERE s.id=?', [req.params.id]);
+    const businessId = req.user.business_id;
+    await execute('UPDATE products SET deleted_at=NOW() WHERE business_id=? AND id=(SELECT product_id FROM product_skus WHERE id=?)', [businessId, req.params.id]);
     res.json({ success: true });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
@@ -147,14 +150,14 @@ router.get('/:skuId/available-devices', async (req, res) => {
 });
 
 // GET /api/categories
-router.get('/categories/all', async (req, res) => {
-  try { res.json(await query('SELECT * FROM categories WHERE business_id=1')); }
+router.get('/categories/all', async (req: any, res) => {
+  try { res.json(await query('SELECT * FROM categories WHERE business_id=?', [req.user.business_id])); }
   catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
 // GET /api/manufacturers
-router.get('/manufacturers/all', async (req, res) => {
-  try { res.json(await query('SELECT * FROM manufacturers WHERE business_id=1')); }
+router.get('/manufacturers/all', async (req: any, res) => {
+  try { res.json(await query('SELECT * FROM manufacturers WHERE business_id=?', [req.user.business_id])); }
   catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 

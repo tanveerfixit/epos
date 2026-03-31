@@ -43,10 +43,11 @@ import LoginPage from './components/auth/LoginPage';
 import SignupPage from './components/auth/SignupPage';
 import ForgotPassword from './components/auth/ForgotPassword';
 import ResetPassword from './components/auth/ResetPassword';
+import AdminLoginPage from './components/auth/AdminLoginPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 type View = 'home' | 'dashboard' | 'register' | 'repairs' | 'invoices' | 'invoice-details' | 'customers' | 'customer-details' | 'products' | 'devices' | 'sku-device-details' | 'create-product' | 'product-details' | 'add-inventory' | 'purchase-orders' | 'purchase-order-detail' | 'manage-data' | 'end-of-day' | 'getting-started' | 'transfers';
-type AuthView = 'login' | 'signup' | 'forgot' | 'reset';
+type AuthView = 'login' | 'signup' | 'forgot' | 'reset' | 'admin-login';
 
 function AppInner() {
   const { currentUser, isAdmin, logout, loading } = useAuth();
@@ -70,8 +71,9 @@ function AppInner() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#1a2535] to-[#2c3e50] flex items-center justify-center">
-        <div className="text-white text-sm animate-pulse">Loading...</div>
+      <div className="min-h-screen bg-[#f8fafc] flex flex-col items-center justify-center p-6">
+        <div className="w-16 h-16 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin mb-4" />
+        <div className="text-slate-500 font-bold text-sm tracking-widest uppercase animate-pulse">Initializing System...</div>
       </div>
     );
   }
@@ -79,9 +81,16 @@ function AppInner() {
   // Auth flow
   if (!currentUser) {
     if (authView === 'signup') return <SignupPage onGoLogin={() => setAuthView('login')} />;
-    if (authView === 'forgot') return <ForgotPassword onGoLogin={() => setAuthView('login')} />;
+    if (authView === 'forgot') return <ForgotPassword onBack={() => setAuthView('login')} />;
     if (authView === 'reset' && resetToken) return <ResetPassword token={resetToken} onGoLogin={() => { setResetToken(null); setAuthView('login'); window.history.replaceState({}, '', '/'); }} />;
-    return <LoginPage onGoSignup={() => setAuthView('signup')} onForgotPassword={() => setAuthView('forgot')} />;
+    if (authView === 'admin-login') return <AdminLoginPage onBack={() => setAuthView('login')} />;
+    return (
+      <LoginPage 
+        onGoSignup={() => setAuthView('signup')} 
+        onForgotPassword={() => setAuthView('forgot')} 
+        onAdminLogin={() => setAuthView('admin-login')}
+      />
+    );
   }
 
   const handleSidebarNavigate = (view: View) => {

@@ -82,7 +82,7 @@ export default function CustomerList({ onSelectCustomer }: CustomerListProps) {
                 <td className="px-4 py-2 border-r border-slate-200">{customer.phone}</td>
                 <td className="px-4 py-2 border-r border-slate-200 text-slate-500">{customer.email || 'N/A'}</td>
                 <td className="px-4 py-2 border-r border-slate-200 text-right font-bold text-emerald-600">
-                  €{(customer.wallet_balance || 0).toFixed(2)}
+                  €{Number(customer.wallet_balance || 0).toFixed(2)}
                 </td>
                 <td className="px-4 py-2 text-center">
                   <button 

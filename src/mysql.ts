@@ -12,6 +12,7 @@ export const pool = mysql.createPool({
   connectionLimit: 10,
   queueLimit: 0,
   connectTimeout: 20000,
+  decimalNumbers: true, // Return MySQL DECIMAL types as Numbers
 });
 
 // Convenience wrapper

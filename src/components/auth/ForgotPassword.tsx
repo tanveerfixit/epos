@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Smartphone, Mail, Key, ShieldCheck, CheckCircle, ArrowLeft, Loader, Send, KeyRound } from 'lucide-react';
 
 type Step = 'email' | 'otp' | 'password' | 'done';
 
@@ -70,116 +71,144 @@ export default function ForgotPassword({ onBack }: { onBack: () => void }) {
   const fmtTimer = (s: number) => `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg,#1a1a2e,#16213e)', padding: 16 }}>
-      <div style={{ background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 40, width: '100%', maxWidth: 420, color: '#fff' }}>
-        
-        {step === 'done' ? (
-          <>
-            <div style={{ textAlign: 'center', marginBottom: 24 }}>
-              <div style={{ fontSize: 48 }}>✓</div>
-              <h2 style={{ margin: '12px 0 8px', color: '#27ae60' }}>Password Updated!</h2>
-              <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14 }}>Your password has been reset. You can now sign in.</p>
-            </div>
-            <button onClick={onBack} style={{ width: '100%', padding: '12px', borderRadius: 8, border: 'none', background: '#2980b9', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 15 }}>
-              Back to Sign In
-            </button>
-          </>
-        ) : (
-          <>
-            <div style={{ marginBottom: 28 }}>
-              <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>
-                {step === 'email' && 'Forgot Password'}
-                {step === 'otp' && 'Enter OTP Code'}
-                {step === 'password' && 'New Password'}
-              </h2>
-              <p style={{ margin: '8px 0 0', color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>
-                {step === 'email' && 'Enter your email to receive a 6-digit code.'}
-                {step === 'otp' && `Enter the 6-digit code sent to ${email}.`}
-                {step === 'password' && 'Choose a new secure password.'}
-              </p>
-            </div>
+    <div className="min-h-screen bg-[#f8fafc] flex flex-col items-center justify-center p-6 font-sans">
+      <div className="w-full max-w-md">
+        <button 
+          onClick={onBack} 
+          className="flex items-center gap-2 text-slate-400 hover:text-slate-900 mb-8 transition-colors group"
+        >
+          <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+          <span className="text-xs font-bold uppercase tracking-widest text-[#3498db]">Back to login</span>
+        </button>
 
-            {/* Progress dots */}
-            <div style={{ display: 'flex', gap: 6, marginBottom: 28 }}>
-              {(['email','otp','password'] as Step[]).map((s, i) => (
-                <div key={s} style={{ flex: 1, height: 3, borderRadius: 2, background: ['email','otp','password'].indexOf(step) >= i ? '#2980b9' : 'rgba(255,255,255,0.15)' }} />
-              ))}
-            </div>
+        <div className="bg-white rounded-[2.5rem] p-10 shadow-soft border border-slate-100 relative overflow-hidden">
+          {/* Progress Indicators */}
+          <div className="flex gap-2 mb-8">
+            {(['email', 'otp', 'password'] as Step[]).map((s, i) => (
+              <div 
+                key={s} 
+                className={`flex-1 h-1.5 rounded-full transition-all duration-500 ${
+                  (['email', 'otp', 'password'].indexOf(step) >= i) ? 'bg-blue-600' : 'bg-slate-100'
+                }`}
+              />
+            ))}
+          </div>
 
-            {error && (
-              <div style={{ background: 'rgba(231,76,60,0.2)', border: '1px solid rgba(231,76,60,0.4)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 14, color: '#e74c3c' }}>
-                {error}
+          {step === 'done' ? (
+            <div className="text-center py-4">
+              <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                <CheckCircle size={40} className="text-green-500" />
               </div>
-            )}
-
-            {step === 'email' && (
-              <form onSubmit={handleSendOtp}>
-                <div style={{ marginBottom: 16 }}>
-                  <label style={{ display: 'block', marginBottom: 6, fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>Email Address</label>
-                  <input
-                    type="email" required value={email} onChange={e => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.08)', color: '#fff', fontSize: 15, boxSizing: 'border-box' }}
-                  />
+              <h2 className="text-2xl font-black text-slate-900 mb-3">Password Updated!</h2>
+              <p className="text-slate-500 text-sm mb-8 leading-relaxed">
+                Your password has been successfully reset. You can now use your new credentials to sign in.
+              </p>
+              <button 
+                onClick={onBack} 
+                className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-slate-200"
+              >
+                Sign In Now
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="mb-8">
+                <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-50 rounded-xl mb-4 text-blue-600">
+                  {step === 'email' && <Mail size={24} />}
+                  {step === 'otp' && <ShieldCheck size={24} />}
+                  {step === 'password' && <KeyRound size={24} />}
                 </div>
-                <button type="submit" disabled={loading} style={{ width: '100%', padding: 13, borderRadius: 8, border: 'none', background: '#2980b9', color: '#fff', fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', fontSize: 15, opacity: loading ? 0.7 : 1 }}>
-                  {loading ? 'Sending...' : 'Send OTP Code'}
-                </button>
-              </form>
-            )}
+                <h2 className="text-2xl font-black text-slate-900">
+                  {step === 'email' && 'Forgot Password?'}
+                  {step === 'otp' && 'Security Code'}
+                  {step === 'password' && 'New Password'}
+                </h2>
+                <p className="text-slate-400 text-sm mt-2 font-medium">
+                  {step === 'email' && "Enter your email and we'll send a 6-digit code."}
+                  {step === 'otp' && `Enter the authentication code sent to ${email}.`}
+                  {step === 'password' && "Create a new secure password for your account."}
+                </p>
+              </div>
 
-            {step === 'otp' && (
-              <form onSubmit={handleVerifyOtp}>
-                <div style={{ marginBottom: 16 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                    <label style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>6-Digit Code</label>
-                    {timer > 0 && <span style={{ fontSize: 12, color: timer < 60 ? '#e74c3c' : '#2ecc71' }}>Expires in {fmtTimer(timer)}</span>}
-                    {timer === 0 && <span style={{ fontSize: 12, color: '#e74c3c' }}>Expired</span>}
+              {error && (
+                <div className="bg-red-50 border border-red-100 text-red-600 rounded-xl p-4 mb-6 text-sm font-medium flex items-center gap-3">
+                  <span className="w-1.5 h-1.5 bg-red-500 rounded-full" />
+                  {error}
+                </div>
+              )}
+
+              {step === 'email' && (
+                <form onSubmit={handleSendOtp} className="space-y-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-700 ml-1 uppercase tracking-wider">Work Email</label>
+                    <input
+                      type="email" required value={email} onChange={e => setEmail(e.target.value)}
+                      placeholder="name@company.com"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all font-medium"
+                    />
                   </div>
-                  <input
-                    type="text" required value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g,'').slice(0,6))}
-                    placeholder="000000" maxLength={6}
-                    style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.08)', color: '#fff', fontSize: 24, textAlign: 'center', letterSpacing: 10, boxSizing: 'border-box' }}
-                  />
-                </div>
-                <button type="submit" disabled={loading || otp.length !== 6} style={{ width: '100%', padding: 13, borderRadius: 8, border: 'none', background: '#2980b9', color: '#fff', fontWeight: 700, cursor: (loading || otp.length !== 6) ? 'not-allowed' : 'pointer', fontSize: 15, opacity: (loading || otp.length !== 6) ? 0.6 : 1 }}>
-                  {loading ? 'Verifying...' : 'Verify Code'}
-                </button>
-                <button type="button" onClick={() => { setStep('email'); setOtp(''); setError(''); }} style={{ width: '100%', marginTop: 10, padding: 11, borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontSize: 14 }}>
-                  ← Try Different Email
-                </button>
-              </form>
-            )}
+                  <button type="submit" disabled={loading} 
+                    className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-slate-200 flex items-center justify-center gap-2"
+                  >
+                    {loading ? <Loader size={20} className="animate-spin" /> : <><Send size={18} /> Send Code</>}
+                  </button>
+                </form>
+              )}
 
-            {step === 'password' && (
-              <form onSubmit={handleReset}>
-                <div style={{ marginBottom: 14 }}>
-                  <label style={{ display: 'block', marginBottom: 6, fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>New Password</label>
-                  <input
-                    type="password" required value={password} onChange={e => setPassword(e.target.value)}
-                    placeholder="Min. 8 characters"
-                    style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.08)', color: '#fff', fontSize: 15, boxSizing: 'border-box' }}
-                  />
-                </div>
-                <div style={{ marginBottom: 20 }}>
-                  <label style={{ display: 'block', marginBottom: 6, fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>Confirm Password</label>
-                  <input
-                    type="password" required value={confirm} onChange={e => setConfirm(e.target.value)}
-                    placeholder="Repeat password"
-                    style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: `1px solid ${confirm && password !== confirm ? 'rgba(231,76,60,0.6)' : 'rgba(255,255,255,0.15)'}`, background: 'rgba(255,255,255,0.08)', color: '#fff', fontSize: 15, boxSizing: 'border-box' }}
-                  />
-                </div>
-                <button type="submit" disabled={loading} style={{ width: '100%', padding: 13, borderRadius: 8, border: 'none', background: '#27ae60', color: '#fff', fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', fontSize: 15, opacity: loading ? 0.7 : 1 }}>
-                  {loading ? 'Saving...' : 'Set New Password'}
-                </button>
-              </form>
-            )}
+              {step === 'otp' && (
+                <form onSubmit={handleVerifyOtp} className="space-y-6">
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center px-1">
+                      <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">6-Digit Code</label>
+                      {timer > 0 ? (
+                        <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{fmtTimer(timer)}</span>
+                      ) : (
+                        <span className="text-[10px] font-black text-red-600 bg-red-50 px-2 py-0.5 rounded-full">EXPIRED</span>
+                      )}
+                    </div>
+                    <input
+                      type="text" required value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g,'').slice(0,6))}
+                      placeholder="000 000" maxLength={6}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-6 text-slate-900 text-center text-3xl font-black tracking-[0.5em] focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all"
+                    />
+                  </div>
+                  <button type="submit" disabled={loading || otp.length !== 6} 
+                    className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-slate-200"
+                  >
+                    {loading ? <Loader size={20} className="animate-spin" /> : 'Verify & Continue'}
+                  </button>
+                  <button type="button" onClick={() => { setStep('email'); setOtp(''); setError(''); }} className="w-full text-slate-400 hover:text-slate-600 text-xs font-bold transition-colors">
+                    Wait, that's the wrong email
+                  </button>
+                </form>
+              )}
 
-            <button onClick={onBack} style={{ width: '100%', marginTop: 16, padding: 10, borderRadius: 8, border: 'none', background: 'transparent', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: 14 }}>
-              ← Back to Sign In
-            </button>
-          </>
-        )}
+              {step === 'password' && (
+                <form onSubmit={handleReset} className="space-y-5">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700 ml-1 uppercase tracking-wider">New Password</label>
+                    <input
+                      type="password" required value={password} onChange={e => setPassword(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-700 ml-1 uppercase tracking-wider">Repeat Password</label>
+                    <input
+                      type="password" required value={confirm} onChange={e => setConfirm(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all"
+                    />
+                  </div>
+                  <button type="submit" disabled={loading} 
+                    className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-blue-100"
+                  >
+                    {loading ? <Loader size={20} className="animate-spin" /> : 'Confirm New Password'}
+                  </button>
+                </form>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

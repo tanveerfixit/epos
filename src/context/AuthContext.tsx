@@ -4,10 +4,12 @@ interface User {
   id: number;
   name: string;
   email: string;
-  role: 'admin' | 'staff';
+  role: 'admin' | 'staff' | 'superadmin';
   status: string;
   branch_id: number;
   branch_name: string;
+  business_id: number;
+  business_name?: string;
 }
 
 interface AuthContextType {

@@ -3,23 +3,31 @@ import { pool, query, queryOne, execute } from '../mysql.js';
 
 const router = Router();
 
-router.get('/', async (req, res) => {
+router.get('/', async (req: any, res) => {
   try {
-    res.json(await query(`
+    const isSuper = req.user.role === 'superadmin';
+    const sql = `
       SELECT i.*, c.name as customer_name FROM invoices i
       LEFT JOIN customers c ON i.customer_id=c.id
-      WHERE i.business_id=1 ORDER BY i.created_at DESC
-    `));
+      WHERE i.business_id=? ${!isSuper ? 'AND i.branch_id=?' : ''}
+      ORDER BY i.created_at DESC
+    `;
+    const params = !isSuper ? [req.user.business_id, req.user.branch_id] : [req.user.business_id];
+    res.json(await query(sql, params));
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', async (req: any, res) => {
   try {
-    const invoice = await queryOne(`
+    const isSuper = req.user.role === 'superadmin';
+    const sql = `
       SELECT i.*, c.name as customer_name, c.phone as customer_phone, c.email as customer_email
-      FROM invoices i LEFT JOIN customers c ON i.customer_id=c.id WHERE i.id=?
-    `, [req.params.id]) as any;
-    if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
+      FROM invoices i LEFT JOIN customers c ON i.customer_id=c.id 
+      WHERE i.id=? AND i.business_id=? ${!isSuper ? 'AND i.branch_id=?' : ''}
+    `;
+    const params = !isSuper ? [req.params.id, req.user.business_id, req.user.branch_id] : [req.params.id, req.user.business_id];
+    const invoice = await queryOne(sql, params) as any;
+    if (!invoice) return res.status(404).json({ error: 'Invoice not found or access denied' });
     const items = await query(`
       SELECT ii.*, p.name as product_name, s.sku_code, d.imei
       FROM invoice_items ii
@@ -64,8 +72,8 @@ router.post('/', async (req, res) => {
     let status = 'paid';
     if (dueAmount > 0) status = totalPaid > 0 ? 'partial' : 'credit';
     const [invR] = await conn.execute(
-      'INSERT INTO invoices (business_id,branch_id,customer_id,invoice_number,subtotal,tax_total,discount_total,grand_total,paid_amount,due_amount,status) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
-      [1, 1, finalCustomerId, invoiceNumber, subtotal, tax_total, discount_total, grand_total, totalPaid, dueAmount, status]
+      'INSERT INTO invoices (business_id,branch_id,user_id,customer_id,invoice_number,subtotal,tax_total,discount_total,grand_total,paid_amount,due_amount,status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
+      [req.user.business_id, req.user.branch_id, req.userId, finalCustomerId, invoiceNumber, subtotal, tax_total, discount_total, grand_total, totalPaid, dueAmount, status]
     );
     const invoiceId = (invR as any).insertId;
     for (const item of items) {
@@ -79,15 +87,15 @@ router.post('/', async (req, res) => {
         [invoiceId, skuId, item.device_id || null, item.quantity, item.price, item.total]);
       if (productInfo?.product_type === 'stock') {
         await conn.execute(`
-          INSERT INTO branch_stock (branch_id,sku_id,quantity) VALUES (1,?,?)
+          INSERT INTO branch_stock (branch_id,sku_id,quantity) VALUES (?,?,?)
           ON DUPLICATE KEY UPDATE quantity=quantity-VALUES(quantity)
-        `, [skuId, item.quantity]);
+        `, [req.user.branch_id, skuId, item.quantity]);
       } else if (item.device_id) {
-        await conn.execute("UPDATE devices SET status='sold' WHERE id=?", [item.device_id]);
+        await conn.execute("UPDATE devices SET status='sold' WHERE id=? AND branch_id=?", [item.device_id, req.user.branch_id]);
         await conn.execute(`
-          INSERT INTO branch_stock (branch_id,sku_id,quantity) VALUES (1,?,-1)
+          INSERT INTO branch_stock (branch_id,sku_id,quantity) VALUES (?,?,-1)
           ON DUPLICATE KEY UPDATE quantity=quantity-1
-        `, [skuId]);
+        `, [req.user.branch_id, skuId]);
       }
     }
     for (const p of (payments || [])) {
@@ -99,12 +107,12 @@ router.post('/', async (req, res) => {
       }
     }
     await conn.execute('INSERT INTO customer_activity (customer_id,user_id,activity,details) VALUES (?,?,?,?)',
-      [finalCustomerId, 1, 'Invoice Created', `Invoice ${invoiceNumber} created for €${grand_total.toFixed(2)}`]);
+      [finalCustomerId, req.userId, 'Invoice Created', `Invoice ${invoiceNumber} created for €${grand_total.toFixed(2)}`]);
     await conn.execute('INSERT INTO invoice_activity (invoice_id,user_id,activity,details) VALUES (?,?,?,?)',
-      [invoiceId, 1, 'Invoice Created', `Invoice ${invoiceNumber} created for €${grand_total.toFixed(2)}`]);
+      [invoiceId, req.userId, 'Invoice Created', `Invoice ${invoiceNumber} created for €${grand_total.toFixed(2)}`]);
     for (const act of (activities || [])) {
       await conn.execute('INSERT INTO invoice_activity (invoice_id,user_id,activity,details) VALUES (?,?,?,?)',
-        [invoiceId, 1, act.action || act.activity, act.details]);
+        [invoiceId, req.userId, act.action || act.activity, act.details]);
     }
     await conn.commit();
     res.json({ id: invoiceId });
@@ -116,10 +124,12 @@ router.post('/:id/refund', async (req, res) => {
   const { method } = req.body;
   const conn = await pool.getConnection();
   try {
-    await conn.beginTransaction();
-    const [invRows] = await conn.execute('SELECT * FROM invoices WHERE id=?', [req.params.id]);
+    const isSuper = req.user.role === 'superadmin';
+    const checkSql = `SELECT * FROM invoices WHERE id=? AND business_id=? ${!isSuper ? 'AND branch_id=?' : ''}`;
+    const checkParams = !isSuper ? [req.params.id, req.user.business_id, req.user.branch_id] : [req.params.id, req.user.business_id];
+    const [invRows] = await conn.execute(checkSql, checkParams);
     const invoice = (invRows as any[])[0];
-    if (!invoice) throw new Error('Invoice not found');
+    if (!invoice) throw new Error('Invoice not found or access denied');
     if (invoice.status==='void') throw new Error('Invoice already refunded');
     await conn.execute("UPDATE invoices SET status='void' WHERE id=?", [req.params.id]);
     await conn.execute('INSERT INTO payments (invoice_id,method,amount) VALUES (?,?,?)',
@@ -127,13 +137,13 @@ router.post('/:id/refund', async (req, res) => {
     const [itemRows] = await conn.execute('SELECT * FROM invoice_items WHERE invoice_id=?', [req.params.id]);
     for (const item of itemRows as any[]) {
       await conn.execute(`
-        INSERT INTO branch_stock (branch_id,sku_id,quantity) VALUES (1,?,?)
+        INSERT INTO branch_stock (branch_id,sku_id,quantity) VALUES (?,?,?)
         ON DUPLICATE KEY UPDATE quantity=quantity+VALUES(quantity)
-      `, [item.sku_id, item.quantity]);
+      `, [invoice.branch_id, item.sku_id, item.quantity]);
       if (item.device_id) await conn.execute("UPDATE devices SET status='in_stock' WHERE id=?", [item.device_id]);
     }
     await conn.execute('INSERT INTO invoice_activity (invoice_id,user_id,activity,details) VALUES (?,?,?,?)',
-      [req.params.id, 1, 'Refund Created', `Refund issued via ${method} for €${invoice.grand_total.toFixed(2)}`]);
+      [req.params.id, req.userId, 'Refund Created', `Refund issued via ${method} for €${invoice.grand_total.toFixed(2)}`]);
     await conn.commit();
     res.json({ success: true });
   } catch (e: any) { await conn.rollback(); res.status(500).json({ error: e.message }); }

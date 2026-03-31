@@ -44,26 +44,80 @@ export async function requireAdminAsync(req: any, res: any, next: any) {
 
 // POST /api/auth/signup
 router.post('/signup', async (req, res) => {
-  const { name, email, password, branch_id } = req.body;
-  if (!name || !email || !password || !branch_id) {
-    return res.status(400).json({ error: 'All fields are required' });
+  const { mode, name, email, password, business_name, branch_name, branch_id } = req.body;
+  
+  if (!name || !email || !password) {
+    return res.status(400).json({ error: 'Name, email and password are required' });
   }
+
+  const conn = await pool.getConnection();
   try {
-    // Check if signup is allowed
-    const settings = await queryOne('SELECT allow_signup FROM settings WHERE business_id=1') as any;
-    if (settings && settings.allow_signup === 0) {
-      return res.status(403).json({ error: 'Sign-up is currently disabled by the administrator.' });
-    }
+    await conn.beginTransaction();
+
     const existing = await queryOne('SELECT id FROM users WHERE email=?', [email]);
     if (existing) return res.status(409).json({ error: 'An account with this email already exists' });
+
     const password_hash = await bcrypt.hash(password, 10);
-    await execute(
-      "INSERT INTO users (business_id,branch_id,name,email,password,password_hash,role,status) VALUES (1,?,?,?,?,?,'staff','pending')",
-      [branch_id, name, email, password, password_hash]
-    );
-    try { await sendAccountPending({ name, email }); } catch {}
-    res.json({ success: true, message: 'Account created. Awaiting admin approval.' });
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
+
+    if (mode === 'business_register') {
+      if (!business_name || !branch_name) {
+        return res.status(400).json({ error: 'Business name and initial branch name are required' });
+      }
+
+      // Create Business
+      const [biz] = await conn.execute('INSERT INTO businesses (name, email) VALUES (?, ?)', [business_name, email]);
+      const businessId = (biz as any).insertId;
+
+      // Create Initial Branch
+      const [br] = await conn.execute('INSERT INTO branches (business_id, name) VALUES (?, ?)', [businessId, branch_name]);
+      const branchId = (br as any).insertId;
+
+      // Create Admin User
+      await conn.execute(
+        "INSERT INTO users (business_id, branch_id, name, email, password, password_hash, role, status) VALUES (?, ?, ?, ?, ?, ?, 'superadmin', 'approved')",
+        [businessId, branchId, name, email, password, password_hash]
+      );
+
+      // Create Default Settings for new business
+      await conn.execute('INSERT INTO settings (business_id) VALUES (?)', [businessId]);
+      
+      // Default Payment Methods
+      const methods = ['Cash', 'Card', 'Other'];
+      for (let i = 0; i < methods.length; i++) {
+        await conn.execute('INSERT INTO payment_methods (business_id, name, display_order) VALUES (?, ?, ?)', [businessId, methods[i], i + 1]);
+      }
+
+      await conn.commit();
+      return res.json({ success: true, message: 'Business registered successfully! You can now log in.' });
+
+    } else {
+      // Staff Join mode
+      if (!branch_id) return res.status(400).json({ error: 'Branch selection is required' });
+
+      // Check if signup is allowed for the target business
+      const branch = await queryOne('SELECT business_id FROM branches WHERE id=?', [branch_id]) as any;
+      if (!branch) return res.status(404).json({ error: 'Selected branch not found' });
+
+      const settings = await queryOne('SELECT allow_signup FROM settings WHERE business_id=?', [branch.business_id]) as any;
+      if (settings && settings.allow_signup === 0) {
+        return res.status(403).json({ error: 'Sign-up is currently disabled for this business.' });
+      }
+
+      await conn.execute(
+        "INSERT INTO users (business_id, branch_id, name, email, password, password_hash, role, status) VALUES (?, ?, ?, ?, ?, ?, 'staff', 'pending')",
+        [branch.business_id, branch_id, name, email, password, password_hash]
+      );
+
+      await conn.commit();
+      try { await sendAccountPending({ name, email }); } catch {}
+      res.json({ success: true, message: 'Account created. Awaiting admin approval.' });
+    }
+  } catch (e: any) { 
+    await conn.rollback();
+    res.status(500).json({ error: e.message }); 
+  } finally { 
+    conn.release(); 
+  }
 });
 
 // POST /api/auth/login
@@ -76,7 +130,7 @@ router.post('/login', async (req, res) => {
 
     // Check signin lockdown (superadmin always allowed)
     if (user.role !== 'superadmin') {
-      const settings = await queryOne('SELECT allow_signin FROM settings WHERE business_id=1') as any;
+      const settings = await queryOne('SELECT allow_signin FROM settings WHERE business_id=?', [user.business_id]) as any;
       if (settings && settings.allow_signin === 0 && user.role !== 'admin') {
         return res.status(403).json({ error: 'Sign-in is currently disabled. Contact your administrator.' });
       }
@@ -102,10 +156,33 @@ router.post('/login', async (req, res) => {
     sessions.set(token, user.id);
     await execute('UPDATE users SET last_login=NOW() WHERE id=?', [user.id]);
     const branch = await queryOne('SELECT * FROM branches WHERE id=?', [user.branch_id]) as any;
+    const business = await queryOne('SELECT name FROM businesses WHERE id=?', [user.business_id]) as any;
     res.json({
       token,
-      user: { id: user.id, name: user.name, email: user.email, role: user.role, status: user.status, branch_id: user.branch_id, branch_name: branch?.name }
+      user: { 
+        id: user.id, 
+        name: user.name, 
+        email: user.email, 
+        role: user.role, 
+        status: user.status, 
+        branch_id: user.branch_id, 
+        branch_name: branch?.name, 
+        business_id: user.business_id,
+        business_name: business?.name
+      }
     });
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+// GET /api/auth/branches-lookup?email=...
+router.get('/branches-lookup', async (req, res) => {
+  const { email } = req.query;
+  if (!email) return res.status(400).json({ error: 'Business email required' });
+  try {
+    const business = await queryOne('SELECT id FROM businesses WHERE email=?', [email]) as any;
+    if (!business) return res.status(404).json({ error: 'No business found with this email' });
+    const branches = await query('SELECT id, name FROM branches WHERE business_id=? AND deleted_at IS NULL', [business.id]);
+    res.json(branches);
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
@@ -119,7 +196,13 @@ router.post('/logout', (req, res) => {
 // GET /api/auth/me
 router.get('/me', requireAuthAsync, async (req: any, res) => {
   try {
-    const user = await queryOne('SELECT u.*, b.name as branch_name FROM users u LEFT JOIN branches b ON u.branch_id=b.id WHERE u.id=?', [req.userId]) as any;
+    const user = await queryOne(`
+      SELECT u.*, b.name as branch_name, biz.name as business_name 
+      FROM users u 
+      LEFT JOIN branches b ON u.branch_id=b.id 
+      LEFT JOIN businesses biz ON u.business_id=biz.id
+      WHERE u.id=?
+    `, [req.userId]) as any;
     if (!user) return res.status(404).json({ error: 'User not found' });
     const { password, password_hash, reset_token, otp_code, ...safeUser } = user;
     res.json(safeUser);
@@ -179,13 +262,13 @@ router.post('/reset-password', async (req, res) => {
 // ─── Admin Routes ─────────────────────────────────────────────────────────────
 
 // GET /api/admin/users
-router.get('/users', requireAdminAsync, async (req, res) => {
+router.get('/users', requireAdminAsync, async (req: any, res) => {
   try {
     res.json(await query(`
       SELECT u.id,u.name,u.email,u.role,u.status,u.last_login,u.created_at,b.name as branch_name,b.id as branch_id
       FROM users u LEFT JOIN branches b ON u.branch_id=b.id
-      WHERE u.business_id=1 AND u.deleted_at IS NULL ORDER BY u.created_at DESC
-    `));
+      WHERE u.business_id=? AND u.deleted_at IS NULL ORDER BY u.created_at DESC
+    `, [req.user.business_id]));
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
@@ -259,25 +342,25 @@ router.post('/users/:id/resend-password', requireAdminAsync, async (req, res) =>
 });
 
 // GET /api/admin/branches
-router.get('/branches', requireAdminAsync, async (req, res) => {
+router.get('/branches', requireAdminAsync, async (req: any, res) => {
   try {
-    res.json(await query('SELECT * FROM branches WHERE business_id=1 AND deleted_at IS NULL'));
+    res.json(await query('SELECT * FROM branches WHERE business_id=? AND deleted_at IS NULL', [req.user.business_id]));
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
 // POST /api/admin/branches
-router.post('/branches', requireAdminAsync, async (req, res) => {
+router.post('/branches', requireAdminAsync, async (req: any, res) => {
   const { name, address, phone } = req.body;
   try {
-    const r = await execute('INSERT INTO branches (business_id,name,address,phone) VALUES (1,?,?,?)', [name, address, phone]);
+    const r = await execute('INSERT INTO branches (business_id,name,address,phone) VALUES (?,?,?,?)', [req.user.business_id, name, address, phone]);
     res.json({ id: r.insertId, name, address, phone });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
 // GET /api/admin/smtp
-router.get('/smtp', requireAdminAsync, async (req, res) => {
+router.get('/smtp', requireAdminAsync, async (req: any, res) => {
   try {
-    const s = await queryOne('SELECT * FROM smtp_settings WHERE business_id=1') as any;
+    const s = await queryOne('SELECT * FROM smtp_settings WHERE business_id=?', [req.user.business_id]) as any;
     if (s) {
       const { pass, ...safe } = s;
       res.json({ ...safe, pass: pass ? '••••••••' : '' });
@@ -288,21 +371,22 @@ router.get('/smtp', requireAdminAsync, async (req, res) => {
 });
 
 // PUT /api/admin/smtp
-router.put('/smtp', requireAdminAsync, async (req, res) => {
+router.put('/smtp', requireAdminAsync, async (req: any, res) => {
   const { host, port, secure, user, pass, from_name, from_email } = req.body;
+  const businessId = req.user.business_id;
   try {
-    const existing = await queryOne('SELECT id FROM smtp_settings WHERE business_id=1');
+    const existing = await queryOne('SELECT id FROM smtp_settings WHERE business_id=?', [businessId]);
     if (existing) {
       if (pass && pass !== '••••••••') {
-        await execute('UPDATE smtp_settings SET host=?,port=?,secure=?,`user`=?,pass=?,from_name=?,from_email=? WHERE business_id=1',
-          [host, port, secure?1:0, user, pass, from_name, from_email]);
+        await execute('UPDATE smtp_settings SET host=?,port=?,secure=?,`user`=?,pass=?,from_name=?,from_email=? WHERE business_id=?',
+          [host, port, secure?1:0, user, pass, from_name, from_email, businessId]);
       } else {
-        await execute('UPDATE smtp_settings SET host=?,port=?,secure=?,`user`=?,from_name=?,from_email=? WHERE business_id=1',
-          [host, port, secure?1:0, user, from_name, from_email]);
+        await execute('UPDATE smtp_settings SET host=?,port=?,secure=?,`user`=?,from_name=?,from_email=? WHERE business_id=?',
+          [host, port, secure?1:0, user, from_name, from_email, businessId]);
       }
     } else {
-      await execute('INSERT INTO smtp_settings (business_id,host,port,secure,`user`,pass,from_name,from_email) VALUES (1,?,?,?,?,?,?,?)',
-        [host, port, secure?1:0, user, pass, from_name, from_email]);
+      await execute('INSERT INTO smtp_settings (business_id,host,port,secure,`user`,pass,from_name,from_email) VALUES (?,?,?,?,?,?,?,?)',
+        [businessId, host, port, secure?1:0, user, pass, from_name, from_email]);
     }
     res.json({ success: true });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
