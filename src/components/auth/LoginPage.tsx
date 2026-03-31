@@ -40,22 +40,22 @@ export default function LoginPage({ onGoSignup, onForgotPassword, onAdminLogin }
       <div className="w-full max-w-md relative z-10">
         {/* Logo Section */}
         <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-white shadow-soft rounded-[2.5rem] mb-6 border border-slate-100 ring-8 ring-slate-50 transition-transform hover:scale-105 duration-300">
-            <Smartphone size={36} className="text-blue-600" />
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-white shadow-sm rounded-md mb-6 border border-slate-200 ring-4 ring-slate-50 transition-transform hover:scale-105 duration-300">
+            <Smartphone size={32} className="text-slate-950" />
           </div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Phone Lab EPOS</h1>
-          <p className="text-slate-500 font-medium mt-2">Precision management for your business</p>
+          <h1 className="text-3xl font-bold text-slate-950 tracking-tight">EPOS NODE CONNECT</h1>
+          <p className="text-slate-500 font-semibold mt-2 text-xs uppercase tracking-widest">Protocol Version 4.1.0</p>
         </div>
 
         {/* Login Card */}
-        <div className="bg-white rounded-[2rem] p-10 shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-slate-100">
-          <div className="mb-8">
-            <h2 className="text-xl font-bold text-slate-800">Welcome Back</h2>
-            <p className="text-slate-400 text-sm mt-1">Please enter your details to sign in</p>
+        <div className="bg-white rounded-md p-10 shadow-sm border border-slate-200">
+          <div className="mb-8 border-l-4 border-blue-600 pl-4">
+            <h2 className="text-xl font-bold text-slate-950 uppercase tracking-tight">Authorized Access Only</h2>
+            <p className="text-slate-400 text-[10px] font-bold mt-1 uppercase tracking-widest">Please enter secondary credentials</p>
           </div>
 
           {error && (
-            <div className="bg-red-50/50 border border-red-100 text-red-600 rounded-xl p-4 mb-6 text-sm font-medium flex items-center gap-3 animate-shake">
+            <div className="bg-red-50 border border-red-100 text-red-600 rounded-sm p-4 mb-6 text-xs font-bold flex items-center gap-3 animate-shake">
               <span className="w-1.5 h-1.5 bg-red-500 rounded-full scale-125" />
               {error}
             </div>
@@ -63,7 +63,7 @@ export default function LoginPage({ onGoSignup, onForgotPassword, onAdminLogin }
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700 ml-1">Email Address</label>
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Universal Identifier (Email)</label>
               <input
                 type="email"
                 value={email}
@@ -71,19 +71,19 @@ export default function LoginPage({ onGoSignup, onForgotPassword, onAdminLogin }
                 required
                 autoFocus
                 placeholder="name@company.com"
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 focus:bg-white transition-all duration-200"
+                className="w-full bg-slate-50 border border-slate-200 rounded-sm px-4 py-3.5 text-slate-950 placeholder-slate-400 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all duration-200"
               />
             </div>
 
             <div className="space-y-2">
               <div className="flex justify-between items-center px-1">
-                <label className="text-sm font-semibold text-slate-700">Password</label>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Security Key (Password)</label>
                 <button 
                   type="button" 
                   onClick={onForgotPassword} 
-                  className="text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors"
+                  className="text-[10px] font-bold text-blue-600 hover:text-blue-700 transition-colors uppercase"
                 >
-                  Forgot?
+                  Reset Route
                 </button>
               </div>
               <div className="relative group">
@@ -93,7 +93,7 @@ export default function LoginPage({ onGoSignup, onForgotPassword, onAdminLogin }
                   onChange={e => setPassword(e.target.value)}
                   required
                   placeholder="••••••••••••"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 pr-12 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 focus:bg-white transition-all duration-200"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-sm px-4 py-3.5 pr-12 text-slate-950 placeholder-slate-400 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all duration-200"
                 />
                 <button 
                   type="button" 
@@ -108,27 +108,27 @@ export default function LoginPage({ onGoSignup, onForgotPassword, onAdminLogin }
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white font-bold py-4 rounded-2xl shadow-lg shadow-slate-200 transition-all duration-200 active:scale-[0.98] flex items-center justify-center gap-2 group"
+              className="w-full bg-slate-950 hover:bg-black disabled:bg-slate-300 text-white font-bold py-4 rounded-sm shadow-md transition-all duration-200 active:scale-[0.98] flex items-center justify-center gap-2 group"
             >
               {loading ? (
                 <Loader size={20} className="animate-spin" />
               ) : (
                 <>
-                  <span>Sign In</span>
-                  <Lock size={16} className="text-slate-400 group-hover:text-white transition-colors" />
+                  <span className="text-xs uppercase tracking-widest font-bold">Initiate Connection</span>
+                  <Lock size={14} className="text-slate-400 group-hover:text-white transition-colors" />
                 </>
               )}
             </button>
           </form>
 
-          <div className="mt-8 pt-8 border-t border-slate-50 text-center">
-            <p className="text-sm text-slate-500">
-              Don't have an account?{' '}
+          <div className="mt-8 pt-8 border-t border-slate-100 text-center">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+              No registered node?{' '}
               <button 
                 onClick={onGoSignup} 
-                className="text-blue-600 hover:text-blue-700 font-bold underline decoration-blue-200 underline-offset-4 decoration-2 transition-all"
+                className="text-blue-600 hover:text-blue-700 underline underline-offset-4 decoration-2 transition-all"
               >
-                Create Account
+                Enroll Staff
               </button>
             </p>
           </div>
@@ -139,13 +139,13 @@ export default function LoginPage({ onGoSignup, onForgotPassword, onAdminLogin }
           <div className="h-px w-12 bg-slate-200" />
           <button 
             onClick={onAdminLogin}
-            title="Admin Control Panel"
+            title="Developer Control Panel"
             className="flex items-center gap-2 px-4 py-2 rounded-full text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all duration-300 group"
           >
-            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
+            <div className="w-8 h-8 rounded-sm bg-slate-100 flex items-center justify-center group-hover:bg-blue-600/10 transition-colors">
               <Shield size={16} className="group-hover:text-blue-600" />
             </div>
-            <span className="text-xs font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">Control Panel Entry</span>
+            <span className="text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">Developer Panel Access</span>
           </button>
         </div>
       </div>

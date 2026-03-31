@@ -60,12 +60,12 @@ router.post('/add', async (req: any, res) => {
       );
     }
     await conn.execute(
-      "INSERT INTO inventory_movements (business_id,branch_id,sku_id,movement_type,quantity,unit_cost,reference_type,reference_id) VALUES (?,?,?,?,?,'purchase',?,?,?,?)",
-      [req.user.business_id, activeBranchId, sku_id, 'purchase', quantity || items?.length, cost_price, 'purchase_order', poId]
+      "INSERT INTO inventory_movements (business_id,branch_id,sku_id,movement_type,quantity,unit_cost,reference_type,reference_id) VALUES (?,?,?,?,?,?,?,?)",
+      [req.user.business_id, activeBranchId, sku_id, 'purchase', quantity || items?.length || 0, cost_price || 0, 'purchase_order', poId]
     );
     await conn.commit();
     res.json({ success: true });
-  } catch (e: any) { await conn.rollback(); res.status(500).json({ error: e.message }); }
+  } catch (e: any) { await conn.rollback(); console.error('[inventory/add] Error:', e.message, e.sql || ''); res.status(500).json({ error: e.message }); }
   finally { conn.release(); }
 });
 
@@ -86,7 +86,7 @@ router.get('/purchase-orders', async (req: any, res) => {
 
 router.get('/purchase-orders/by-number/:number', async (req, res) => {
   try {
-    const po = await queryOne('SELECT id FROM purchase_orders WHERE po_number=? AND business_id=1', [req.params.number]);
+    const po = await queryOne('SELECT id FROM purchase_orders WHERE po_number=? AND business_id=?', [req.params.number, (req as any).user.business_id]);
     if (!po) return res.status(404).json({ error: 'Purchase order not found' });
     res.json(po);
   } catch (e: any) { res.status(500).json({ error: e.message }); }
@@ -97,8 +97,8 @@ router.get('/purchase-orders/:id', async (req, res) => {
     const po = await queryOne(`
       SELECT po.*, s.name as supplier_name, s.email as supplier_email FROM purchase_orders po
       LEFT JOIN suppliers s ON po.supplier_id=s.id
-      WHERE po.id=? AND po.business_id=1
-    `, [req.params.id]);
+      WHERE po.id=? AND po.business_id=?
+    `, [req.params.id, (req as any).user.business_id]);
     if (!po) return res.status(404).json({ error: 'Purchase order not found' });
     const items = await query('SELECT * FROM purchase_order_items WHERE po_id=?', [req.params.id]);
     res.json({ ...po, items });
@@ -136,9 +136,9 @@ router.get('/devices/search', async (req: any, res) => {
       SELECT d.*, p.name as product_name, s.sku_code, b.name as branch_name
       FROM devices d JOIN product_skus s ON d.sku_id=s.id
       JOIN products p ON s.product_id=p.id
-      LEFT JOIN branches b ON d.branch_id=b.id WHERE d.status='in_stock'
+      LEFT JOIN branches b ON d.branch_id=b.id WHERE d.status='in_stock' AND d.business_id=?
     `;
-    const params: any[] = [];
+    const params: any[] = [(req as any).user.business_id];
     if (imei) { sql += ' AND d.imei LIKE ?'; params.push(`%${imei}%`); }
     if (branch_id) { sql += ' AND d.branch_id=?'; params.push(branch_id); }
     sql += ' LIMIT 20';
@@ -208,9 +208,9 @@ router.put('/transfers/:id/complete', async (req, res) => {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    const [tr] = await conn.execute('SELECT * FROM device_transfers WHERE id=?', [req.params.id]);
+    const [tr] = await conn.execute('SELECT * FROM device_transfers WHERE id=? AND business_id=?', [req.params.id, (req as any).user.business_id]);
     const transfer = (tr as any[])[0];
-    if (!transfer) throw new Error('Transfer not found');
+    if (!transfer) throw new Error('Transfer not found or access denied');
     if (transfer.status === 'completed') throw new Error('Transfer already completed');
     await conn.execute("UPDATE device_transfers SET status='completed',completed_at=NOW() WHERE id=?", [transfer.id]);
     if (transfer.device_id) {
@@ -234,9 +234,9 @@ router.put('/transfers/:id/cancel', async (req, res) => {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    const [tr] = await conn.execute('SELECT * FROM device_transfers WHERE id=?', [req.params.id]);
+    const [tr] = await conn.execute('SELECT * FROM device_transfers WHERE id=? AND business_id=?', [req.params.id, (req as any).user.business_id]);
     const transfer = (tr as any[])[0];
-    if (!transfer) throw new Error('Transfer not found');
+    if (!transfer) throw new Error('Transfer not found or access denied');
     if (transfer.status === 'completed') throw new Error('Cannot cancel a completed transfer');
     await conn.execute("UPDATE device_transfers SET status='cancelled' WHERE id=?", [transfer.id]);
     if (transfer.device_id) await conn.execute("UPDATE devices SET status='in_stock' WHERE id=?", [transfer.device_id]);
@@ -249,7 +249,7 @@ router.put('/transfers/:id/cancel', async (req, res) => {
 // GET /api/transfers/device/:imei
 router.get('/transfers/device/:imei', async (req, res) => {
   try {
-    const device = await queryOne('SELECT * FROM devices WHERE imei=?', [req.params.imei]);
+    const device = await queryOne('SELECT * FROM devices WHERE imei=? AND business_id=?', [req.params.imei, (req as any).user.business_id]);
     if (!device) return res.status(404).json({ error: 'No device found with this IMEI' });
     const transfers = await query(`
       SELECT t.*, fb.name as from_branch_name, tb.name as to_branch_name, u.name as initiated_by_name

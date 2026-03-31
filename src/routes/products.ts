@@ -17,8 +17,8 @@ router.get('/', async (req: any, res) => {
       JOIN products p ON s.product_id = p.id
       LEFT JOIN categories c ON p.category_id = c.id
       LEFT JOIN manufacturers m ON p.manufacturer_id = m.id
-      WHERE p.deleted_at IS NULL AND p.business_id = 1
-    `);
+      WHERE p.deleted_at IS NULL AND p.business_id = ?
+    `, [req.user.business_id]);
     const mapped = products.map((p: any) => ({
       ...p,
       name: p.product_name + (p.sku_code ? ` (${p.sku_code})` : '')

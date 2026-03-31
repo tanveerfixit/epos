@@ -701,7 +701,7 @@ export async function seedData() {
     `INSERT INTO users (business_id, branch_id, name, email, password, password_hash, role, status)
      VALUES (?, ?, ?, ?, ?, ?, 'admin', 'approved')
      ON DUPLICATE KEY UPDATE role='admin', status='approved'`,
-    [businessId, branchId, 'Admin', 'admin@icover.ie', 'admin123', adminHash]
+    [businessId, branchId, 'Developer Panel', 'admin@icover.ie', 'admin123', adminHash]
   );
 
   // Suppliers
