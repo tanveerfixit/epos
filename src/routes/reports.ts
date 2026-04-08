@@ -49,7 +49,7 @@ router.post('/eod', async (req: any, res) => {
       INSERT INTO closing_reports
         (business_id,branch_id,user_id,report_date,starting_balance,cash_counted,calculated_cash,difference,
          total_sales,total_deposits,total_cash_in_drawer,comments)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
       [req.user.business_id, req.user.branch_id, req.userId, report_date, starting_balance, cash_counted, calculated_cash, difference,
        total_sales, total_deposits, total_cash_in_drawer, comments]);
     const reportId = (r as any).insertId;

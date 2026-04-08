@@ -57,7 +57,11 @@ router.post('/', async (req, res) => {
     await conn.beginTransaction();
     let finalCustomerId = customer_id;
     if (!finalCustomerId) {
-      const [wRows] = await conn.execute("SELECT id FROM customers WHERE name='Walk-in Customer' LIMIT 1");
+      // Scoped to this business (FINDING-017)
+      const [wRows] = await conn.execute(
+        "SELECT id FROM customers WHERE name='Walk-in Customer' AND business_id=? LIMIT 1",
+        [req.user.business_id]
+      );
       finalCustomerId = (wRows as any[])[0]?.id || null;
     }
     const now = new Date();
@@ -150,9 +154,14 @@ router.post('/:id/refund', async (req, res) => {
   finally { conn.release(); }
 });
 
-router.put('/payments/:id', async (req, res) => {
+router.put('/payments/:id', async (req: any, res) => {
   try {
-    await execute('UPDATE payments SET method=? WHERE id=?', [req.body.method, req.params.id]);
+    // Scope via JOIN to invoice business (FINDING-005)
+    const r = await execute(
+      'UPDATE payments p JOIN invoices i ON p.invoice_id=i.id SET p.method=? WHERE p.id=? AND i.business_id=?',
+      [req.body.method, req.params.id, req.user.business_id]
+    );
+    if (r.affectedRows === 0) return res.status(404).json({ error: 'Payment not found or access denied' });
     res.json({ success: true });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });

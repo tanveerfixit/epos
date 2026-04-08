@@ -29,7 +29,7 @@ async function startServer() {
   app.use(express.json({ limit: '10mb' }));
 
   // ─── Import Route Modules ─────────────────────────────────────────────────
-  const { default: mainRouter } = await import('./src/routes/auth.js');
+  const { default: authRouter, adminRouter } = await import('./src/routes/auth.js');
   const { default: productsRouter } = await import('./src/routes/products.js');
   const { default: customersRouter } = await import('./src/routes/customers.js');
   const { default: invoicesRouter } = await import('./src/routes/invoices.js');
@@ -38,13 +38,14 @@ async function startServer() {
   const { default: inventoryRouter } = await import('./src/routes/inventory.js');
 
   // ─── Public Auth Routes (no auth required) ────────────────────────────────
-  app.use('/api/auth', mainRouter);
-
-  // ─── Admin Routes (have their own requireAdminAsync inside) ───────────────
-  app.use('/api/admin', mainRouter);
+  app.use('/api/auth', authRouter);
 
   // ─── Protected API Routes (auth required for everything below) ───────────
   app.use('/api', requireAuthAsync);
+
+  // ─── Admin Routes (have requireAdminAsync inside each handler) ────────────
+  // FIXED: separate adminRouter, no bleed-through from authRouter (FINDING-008)
+  app.use('/api/admin', adminRouter);
 
   // ─── Resource Routes ──────────────────────────────────────────────────────
   app.use('/api/products', productsRouter);
@@ -56,7 +57,9 @@ async function startServer() {
   // Settings-style routes (flat /api/settings, /api/company, etc.)
   app.use('/api', settingsRouter);
 
-  // Top-level inventory routes (/api/search, /api/devices, /api/transfers, /api/repairs, /api/purchase-orders, /api/payments)
+  // Top-level inventory routes (/api/search, /api/devices, /api/transfers, /api/repairs, /api/purchase-orders)
+  // FIXED: inventoryRouter no longer double-mounted at /api/inventory too (FINDING-011)
+  // Routes that need top-level paths (/api/search, /api/devices, etc.) live here only.
   app.use('/api', inventoryRouter);
 
   // ─── Import Products ──────────────────────────────────────────────────────

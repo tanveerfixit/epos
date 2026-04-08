@@ -4,7 +4,8 @@ interface User {
   id: number;
   name: string;
   email: string;
-  role: 'admin' | 'staff' | 'superadmin';
+  role: 'admin' | 'staff' | 'superadmin' | 'developer';
+
   status: string;
   branch_id: number;
   branch_name: string;
@@ -66,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ currentUser, token, isAdmin: currentUser?.role === 'admin', login, logout, loading }}>
+    <AuthContext.Provider value={{ currentUser, token, isAdmin: ['admin','superadmin','developer'].includes(currentUser?.role || ''), login, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );

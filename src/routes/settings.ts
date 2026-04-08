@@ -125,26 +125,32 @@ router.get('/thermal-printer-settings', async (req: any, res) => {
 router.post('/thermal-printer-settings', async (req: any, res) => {
   const branchId = req.user?.branch_id;
   const m = req.body;
-  const conn = await pool.getConnection();
   try {
-    await conn.beginTransaction();
-    await conn.execute('DELETE FROM thermal_printer_settings WHERE business_id=? AND branch_id=?', [req.user.business_id, branchId]);
-    await conn.execute(`
+    // Atomic upsert — no data loss if server crashes mid-write (FINDING-019)
+    await execute(`
       INSERT INTO thermal_printer_settings
         (business_id,branch_id,font_family,font_size,show_logo,show_business_name,show_business_address,
          show_business_phone,show_business_email,show_customer_info,show_invoice_number,show_date,
          show_items_table,show_totals,show_footer,footer_text)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      [req.user.business_id, branchId, m.font_family||'monospace', m.font_size||'12px', m.show_logo?1:0, m.show_business_name?1:0,
-       m.show_business_address?1:0, m.show_business_phone?1:0, m.show_business_email?1:0,
-       m.show_customer_info?1:0, m.show_invoice_number?1:0, m.show_date?1:0,
-       m.show_items_table?1:0, m.show_totals?1:0, m.show_footer?1:0,
-       m.footer_text||'Thank you for your business!']);
-    await conn.commit();
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      ON DUPLICATE KEY UPDATE
+        branch_id=VALUES(branch_id),font_family=VALUES(font_family),font_size=VALUES(font_size),
+        show_logo=VALUES(show_logo),show_business_name=VALUES(show_business_name),
+        show_business_address=VALUES(show_business_address),show_business_phone=VALUES(show_business_phone),
+        show_business_email=VALUES(show_business_email),show_customer_info=VALUES(show_customer_info),
+        show_invoice_number=VALUES(show_invoice_number),show_date=VALUES(show_date),
+        show_items_table=VALUES(show_items_table),show_totals=VALUES(show_totals),
+        show_footer=VALUES(show_footer),footer_text=VALUES(footer_text)`,
+      [req.user.business_id, branchId, m.font_family||'monospace', m.font_size||'12px', m.show_logo?1:0,
+       m.show_business_name?1:0, m.show_business_address?1:0, m.show_business_phone?1:0,
+       m.show_business_email?1:0, m.show_customer_info?1:0, m.show_invoice_number?1:0,
+       m.show_date?1:0, m.show_items_table?1:0, m.show_totals?1:0, m.show_footer?1:0,
+       m.footer_text||'Thank you for your business!']
+    );
     res.json({ success: true });
-  } catch (e: any) { await conn.rollback(); res.status(500).json({ error: e.message }); }
-  finally { conn.release(); }
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
+
 
 // ─── Categories / Manufacturers ───────────────────────────────────────────────
 

@@ -343,12 +343,6 @@ router.get('/search', async (req: any, res) => {
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
-// POST /api/payments/:id (update method)
-router.put('/payments/:id', async (req, res) => {
-  try {
-    await execute('UPDATE payments SET method=? WHERE id=?', [req.body.method, req.params.id]);
-    res.json({ success: true });
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
-});
+// Payment method update is handled in invoices.ts with business isolation (FINDING-005)
 
 export default router;

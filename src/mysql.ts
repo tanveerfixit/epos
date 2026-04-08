@@ -2,6 +2,11 @@ import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
 dotenv.config();
 
+// SECURITY: Credentials must come from environment variables (FINDING-001)
+if (!process.env.DB_PASS) {
+  console.warn('[SECURITY WARNING] DB_PASS is not set. Using hardcoded fallback. Set this in your .env file before going to production.');
+}
+
 export const pool = mysql.createPool({
   host: process.env.DB_HOST || 'srv2113.hstgr.io',
   port: Number(process.env.DB_PORT) || 3306,
@@ -12,7 +17,7 @@ export const pool = mysql.createPool({
   connectionLimit: 10,
   queueLimit: 0,
   connectTimeout: 20000,
-  decimalNumbers: true, // Return MySQL DECIMAL types as Numbers
+  decimalNumbers: true,
 });
 
 // Convenience wrapper
@@ -621,6 +626,7 @@ export async function initSchema() {
     await conn.query(`
       CREATE TABLE IF NOT EXISTS closing_reports (
         id INT AUTO_INCREMENT PRIMARY KEY,
+        business_id INT NOT NULL DEFAULT 0,
         branch_id INT NOT NULL,
         user_id INT NOT NULL,
         report_date DATE NOT NULL,
@@ -637,6 +643,14 @@ export async function initSchema() {
         FOREIGN KEY (user_id) REFERENCES users(id)
       )
     `);
+
+    // Migration: add business_id to closing_reports if missing (FINDING-016)
+    try {
+      await conn.query('ALTER TABLE closing_reports ADD COLUMN business_id INT NOT NULL DEFAULT 0 AFTER id');
+      console.log('[MySQL] Migration: added business_id to closing_reports');
+    } catch (e: any) {
+      if (!e.message?.includes('Duplicate column')) throw e;
+    }
 
     await conn.query(`
       CREATE TABLE IF NOT EXISTS closing_report_payments (
@@ -695,13 +709,13 @@ export async function seedData() {
     [businessId, branchId, 'Super Admin', 'tanveerfixit@gmail.com', 'Admin@2024', superAdminHash]
   );
 
-  // Admin user
-  const adminHash = await bcrypt.hash('admin123', 10);
+  // Developer Panel user (role='developer', no plaintext password) (FINDING-002, FINDING-007)
+  const devHash = await bcrypt.hash(process.env.DEV_PASS || 'admin123', 10);
   await pool.execute(
     `INSERT INTO users (business_id, branch_id, name, email, password, password_hash, role, status)
-     VALUES (?, ?, ?, ?, ?, ?, 'admin', 'approved')
-     ON DUPLICATE KEY UPDATE role='admin', status='approved'`,
-    [businessId, branchId, 'Developer Panel', 'admin@icover.ie', 'admin123', adminHash]
+     VALUES (?, ?, ?, ?, '', ?, 'developer', 'approved')
+     ON DUPLICATE KEY UPDATE role='developer', status='approved', password=''`,
+    [businessId, branchId, 'Developer Panel', 'admin@icover.ie', devHash]
   );
 
   // Suppliers
@@ -765,9 +779,19 @@ export async function ensureSuperAdmin() {
 
   await pool.execute(
     `INSERT INTO users (business_id, branch_id, name, email, password, password_hash, role, status)
-     VALUES (?, ?, 'Super Admin', 'tanveerfixit@gmail.com', 'Admin@2024', ?, 'superadmin', 'approved')
-     ON DUPLICATE KEY UPDATE role='superadmin', status='approved'`,
+     VALUES (?, ?, 'Super Admin', 'tanveerfixit@gmail.com', '', ?, 'superadmin', 'approved')
+     ON DUPLICATE KEY UPDATE role='superadmin', status='approved', password=''`,
     [businessId, branchId, hash]
   );
-  console.log('[MySQL] Superadmin tanveerfixit@gmail.com ensured.');
+
+  // ─── Migrate Developer Panel user to role='developer' (FINDING-002) ──────
+  // Runs on every boot — safe because it's idempotent via email match.
+  await pool.execute(
+    `UPDATE users SET role='developer', password=''
+     WHERE email='admin@icover.ie' AND role IN ('admin','developer')`,
+    []
+  );
+
+  console.log('[MySQL] Superadmin and developer roles ensured.');
 }
+

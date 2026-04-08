@@ -6,7 +6,6 @@ const router = Router();
 // GET /api/products
 router.get('/', async (req: any, res) => {
   try {
-    const branchId = req.user?.branch_id || 1;
     const products = await query(`
       SELECT s.id, p.name as product_name, s.sku_code, s.barcode,
              s.selling_price, s.cost_price, p.product_type,
@@ -116,35 +115,40 @@ router.delete('/:id', async (req: any, res) => {
 });
 
 // GET /api/products/:id/activity
-router.get('/:id/activity', async (req, res) => {
+router.get('/:id/activity', async (req: any, res) => {
   try {
     const acts = await query(`
       SELECT a.*, u.name as user_name FROM product_activity a
       LEFT JOIN users u ON a.user_id = u.id
-      WHERE a.sku_id = ? ORDER BY a.created_at DESC
-    `, [req.params.id]);
+      JOIN product_skus s ON a.sku_id = s.id
+      JOIN products p ON s.product_id = p.id
+      WHERE a.sku_id = ? AND p.business_id = ? ORDER BY a.created_at DESC
+    `, [req.params.id, req.user.business_id]);
     res.json(acts);
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
 // GET /api/products/:skuId/devices
-router.get('/:skuId/devices', async (req, res) => {
+router.get('/:skuId/devices', async (req: any, res) => {
   try {
     const devices = await query(`
       SELECT d.id, d.imei, d.color, d.gb, d.\`condition\`, d.status, d.created_at, inv.invoice_number
       FROM devices d
       LEFT JOIN invoice_items ii ON d.id = ii.device_id
       LEFT JOIN invoices inv ON ii.invoice_id = inv.id
-      WHERE d.sku_id = ? ORDER BY d.created_at DESC
-    `, [req.params.skuId]);
+      WHERE d.sku_id = ? AND d.business_id = ? ORDER BY d.created_at DESC
+    `, [req.params.skuId, req.user.business_id]);
     res.json(devices);
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
 // GET /api/products/:skuId/available-devices
-router.get('/:skuId/available-devices', async (req, res) => {
+router.get('/:skuId/available-devices', async (req: any, res) => {
   try {
-    const devices = await query(`SELECT id,imei,cost_price,status,created_at FROM devices WHERE sku_id=? AND status='in_stock'`, [req.params.skuId]);
+    const devices = await query(
+      `SELECT id,imei,cost_price,status,created_at FROM devices WHERE sku_id=? AND status='in_stock' AND business_id=?`,
+      [req.params.skuId, req.user.business_id]
+    );
     res.json(devices);
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });

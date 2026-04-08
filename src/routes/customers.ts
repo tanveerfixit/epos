@@ -105,23 +105,25 @@ router.get('/:id/invoices', async (req: any, res) => {
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
-router.get('/:id/payments', async (req, res) => {
+router.get('/:id/payments', async (req: any, res) => {
   try {
     res.json(await query(`
       SELECT p.*, i.invoice_number FROM payments p
       LEFT JOIN invoices i ON p.invoice_id=i.id
-      WHERE p.customer_id=? ORDER BY p.paid_at DESC
-    `, [req.params.id]));
+      JOIN customers c ON p.customer_id=c.id
+      WHERE p.customer_id=? AND c.business_id=? ORDER BY p.paid_at DESC
+    `, [req.params.id, req.user.business_id]));
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
-router.get('/:id/ledger', async (req, res) => {
+router.get('/:id/ledger', async (req: any, res) => {
   try {
     res.json(await query(`
       SELECT p.*, i.invoice_number FROM payments p
       LEFT JOIN invoices i ON p.invoice_id=i.id
-      WHERE p.customer_id=? ORDER BY p.paid_at DESC
-    `, [req.params.id]));
+      JOIN customers c ON p.customer_id=c.id
+      WHERE p.customer_id=? AND c.business_id=? ORDER BY p.paid_at DESC
+    `, [req.params.id, req.user.business_id]));
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 

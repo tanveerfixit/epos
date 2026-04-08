@@ -2,22 +2,45 @@ import { Router } from 'express';
 import { pool, query, queryOne, execute } from '../mysql.js';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
-import { sendAccountPending, sendAccountApproved, sendAccountRejected, sendAccountDeactivated, sendPasswordReset, sendOtpCode, sendGeneratedPassword, sendTestEmail } from '../services/mailer.js';
+import { sendAccountPending, sendAccountApproved, sendAccountRejected, sendAccountDeactivated, sendOtpCode, sendGeneratedPassword, sendTestEmail } from '../services/mailer.js';
 
-const router = Router();
-export const sessions = new Map<string, number>();
+// ─── Session Management ───────────────────────────────────────────────────────
+
+interface Session { userId: number; expiresAt: number; }
+const SESSION_TTL_MS = 8 * 60 * 60 * 1000; // 8 hours
+
+export const sessions = new Map<string, Session>();
+
+// Purge expired sessions every hour
+const _cleanup = setInterval(() => {
+  const now = Date.now();
+  for (const [token, sess] of sessions) {
+    if (sess.expiresAt <= now) sessions.delete(token);
+  }
+}, 60 * 60 * 1000);
+if (typeof _cleanup.unref === 'function') _cleanup.unref();
+
+// ─── Auth Middleware ──────────────────────────────────────────────────────────
 
 export function requireAuth(req: any, res: any, next: any) {
   const token = req.headers['authorization']?.replace('Bearer ', '');
-  if (!token || !sessions.has(token)) return res.status(401).json({ error: 'Unauthorized' });
+  const sess = token ? sessions.get(token) : undefined;
+  if (!sess || sess.expiresAt <= Date.now()) {
+    if (token && sess) sessions.delete(token);
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
   req._sessionToken = token;
   next();
 }
 
 export async function requireAuthAsync(req: any, res: any, next: any) {
   const token = req.headers['authorization']?.replace('Bearer ', '');
-  if (!token || !sessions.has(token)) return res.status(401).json({ error: 'Unauthorized' });
-  const userId = sessions.get(token);
+  const sess = token ? sessions.get(token) : undefined;
+  if (!sess || sess.expiresAt <= Date.now()) {
+    if (token && sess) sessions.delete(token);
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  const userId = sess.userId;
   try {
     const user = await queryOne('SELECT * FROM users WHERE id=?', [userId]);
     if (!user) return res.status(401).json({ error: 'User not found' });
@@ -29,11 +52,15 @@ export async function requireAuthAsync(req: any, res: any, next: any) {
 
 export async function requireAdminAsync(req: any, res: any, next: any) {
   const token = req.headers['authorization']?.replace('Bearer ', '');
-  if (!token || !sessions.has(token)) return res.status(401).json({ error: 'Unauthorized' });
-  const userId = sessions.get(token);
+  const sess = token ? sessions.get(token) : undefined;
+  if (!sess || sess.expiresAt <= Date.now()) {
+    if (token && sess) sessions.delete(token);
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  const userId = sess.userId;
   try {
     const user = await queryOne('SELECT * FROM users WHERE id=?', [userId]) as any;
-    if (!user || !['admin','superadmin'].includes(user.role)) {
+    if (!user || !['admin', 'superadmin', 'developer'].includes(user.role)) {
       return res.status(403).json({ error: 'Admin access required' });
     }
     req.userId = userId;
@@ -42,82 +69,64 @@ export async function requireAdminAsync(req: any, res: any, next: any) {
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 }
 
+// ─── Public Auth Router ───────────────────────────────────────────────────────
+
+const router = Router();
+
 // POST /api/auth/signup
 router.post('/signup', async (req, res) => {
   const { mode, name, email, password, business_name, branch_name, branch_id } = req.body;
-  
   if (!name || !email || !password) {
     return res.status(400).json({ error: 'Name, email and password are required' });
   }
-
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-
     const existing = await queryOne('SELECT id FROM users WHERE email=?', [email]);
     if (existing) return res.status(409).json({ error: 'An account with this email already exists' });
-
     const password_hash = await bcrypt.hash(password, 10);
 
     if (mode === 'business_register') {
       if (!business_name || !branch_name) {
         return res.status(400).json({ error: 'Business name and initial branch name are required' });
       }
-
-      // Create Business
-      const [biz] = await conn.execute('INSERT INTO businesses (name, email) VALUES (?, ?)', [business_name, email]);
+      const [biz] = await conn.execute('INSERT INTO businesses (name, email, status) VALUES (?, ?, ?)', [business_name, email, 'inactive']);
       const businessId = (biz as any).insertId;
-
-      // Create Initial Branch
       const [br] = await conn.execute('INSERT INTO branches (business_id, name) VALUES (?, ?)', [businessId, branch_name]);
       const branchId = (br as any).insertId;
-
-      // Create Admin User
+      // No plaintext password stored (FINDING-007)
       await conn.execute(
-        "INSERT INTO users (business_id, branch_id, name, email, password, password_hash, role, status) VALUES (?, ?, ?, ?, ?, ?, 'superadmin', 'approved')",
-        [businessId, branchId, name, email, password, password_hash]
+        "INSERT INTO users (business_id, branch_id, name, email, password_hash, role, status) VALUES (?, ?, ?, ?, ?, 'superadmin', 'approved')",
+        [businessId, branchId, name, email, password_hash]
       );
-
-      // Create Default Settings for new business
       await conn.execute('INSERT INTO settings (business_id) VALUES (?)', [businessId]);
-      
-      // Default Payment Methods
       const methods = ['Cash', 'Card', 'Other'];
       for (let i = 0; i < methods.length; i++) {
         await conn.execute('INSERT INTO payment_methods (business_id, name, display_order) VALUES (?, ?, ?)', [businessId, methods[i], i + 1]);
       }
-
       await conn.commit();
       return res.json({ success: true, message: 'Business registered successfully! You can now log in.' });
-
     } else {
-      // Staff Join mode
       if (!branch_id) return res.status(400).json({ error: 'Branch selection is required' });
-
-      // Check if signup is allowed for the target business
       const branch = await queryOne('SELECT business_id FROM branches WHERE id=?', [branch_id]) as any;
       if (!branch) return res.status(404).json({ error: 'Selected branch not found' });
-
       const settings = await queryOne('SELECT allow_signup FROM settings WHERE business_id=?', [branch.business_id]) as any;
       if (settings && settings.allow_signup === 0) {
         return res.status(403).json({ error: 'Sign-up is currently disabled for this business.' });
       }
-
+      // No plaintext password stored (FINDING-007)
       await conn.execute(
-        "INSERT INTO users (business_id, branch_id, name, email, password, password_hash, role, status) VALUES (?, ?, ?, ?, ?, ?, 'staff', 'pending')",
-        [branch.business_id, branch_id, name, email, password, password_hash]
+        "INSERT INTO users (business_id, branch_id, name, email, password_hash, role, status) VALUES (?, ?, ?, ?, ?, 'staff', 'pending')",
+        [branch.business_id, branch_id, name, email, password_hash]
       );
-
       await conn.commit();
       try { await sendAccountPending({ name, email }); } catch {}
       res.json({ success: true, message: 'Account created. Awaiting admin approval.' });
     }
-  } catch (e: any) { 
+  } catch (e: any) {
     await conn.rollback();
-    res.status(500).json({ error: e.message }); 
-  } finally { 
-    conn.release(); 
-  }
+    res.status(500).json({ error: e.message });
+  } finally { conn.release(); }
 });
 
 // POST /api/auth/login
@@ -128,11 +137,17 @@ router.post('/login', async (req, res) => {
     const user = await queryOne('SELECT * FROM users WHERE email=? AND deleted_at IS NULL', [email]) as any;
     if (!user) return res.status(401).json({ error: 'Invalid email or password' });
 
-    // Check signin lockdown (superadmin always allowed)
-    if (user.role !== 'superadmin') {
-      const settings = await queryOne('SELECT allow_signin FROM settings WHERE business_id=?', [user.business_id]) as any;
-      if (settings && settings.allow_signin === 0 && user.role !== 'admin') {
-        return res.status(403).json({ error: 'Sign-in is currently disabled. Contact your administrator.' });
+    // 'developer' role bypasses business-status check (FINDING-002)
+    if (user.role !== 'developer') {
+      const business = await queryOne('SELECT status FROM businesses WHERE id=?', [user.business_id]) as any;
+      if (business && business.status !== 'active') {
+        return res.status(403).json({ error: 'Your business account is pending developer approval or has been deactivated.' });
+      }
+      if (user.role !== 'superadmin' && user.role !== 'admin') {
+        const settings = await queryOne('SELECT allow_signin FROM settings WHERE business_id=?', [user.business_id]) as any;
+        if (settings && settings.allow_signin === 0) {
+          return res.status(403).json({ error: 'Sign-in is currently disabled. Contact your administrator.' });
+        }
       }
     }
 
@@ -144,32 +159,25 @@ router.post('/login', async (req, res) => {
     if (user.password_hash) {
       valid = await bcrypt.compare(password, user.password_hash);
     } else {
+      // Legacy plaintext fallback — migrate to hash on successful login (FINDING-007)
       valid = user.password === password;
       if (valid) {
         const hash = await bcrypt.hash(password, 10);
-        await execute('UPDATE users SET password_hash=? WHERE id=?', [hash, user.id]);
+        await execute("UPDATE users SET password_hash=?, password='' WHERE id=?", [hash, user.id]);
       }
     }
     if (!valid) return res.status(401).json({ error: 'Invalid email or password' });
 
+    // Session with expiry (FINDING-003)
     const token = crypto.randomUUID();
-    sessions.set(token, user.id);
+    sessions.set(token, { userId: user.id, expiresAt: Date.now() + SESSION_TTL_MS });
     await execute('UPDATE users SET last_login=NOW() WHERE id=?', [user.id]);
     const branch = await queryOne('SELECT * FROM branches WHERE id=?', [user.branch_id]) as any;
     const business = await queryOne('SELECT name FROM businesses WHERE id=?', [user.business_id]) as any;
     res.json({
       token,
-      user: { 
-        id: user.id, 
-        name: user.name, 
-        email: user.email, 
-        role: user.role, 
-        status: user.status, 
-        branch_id: user.branch_id, 
-        branch_name: branch?.name, 
-        business_id: user.business_id,
-        business_name: business?.name
-      }
+      user: { id: user.id, name: user.name, email: user.email, role: user.role, status: user.status,
+        branch_id: user.branch_id, branch_name: branch?.name, business_id: user.business_id, business_name: business?.name }
     });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
@@ -198,10 +206,8 @@ router.get('/me', requireAuthAsync, async (req: any, res) => {
   try {
     const user = await queryOne(`
       SELECT u.*, b.name as branch_name, biz.name as business_name 
-      FROM users u 
-      LEFT JOIN branches b ON u.branch_id=b.id 
-      LEFT JOIN businesses biz ON u.business_id=biz.id
-      WHERE u.id=?
+      FROM users u LEFT JOIN branches b ON u.branch_id=b.id 
+      LEFT JOIN businesses biz ON u.business_id=biz.id WHERE u.id=?
     `, [req.userId]) as any;
     if (!user) return res.status(404).json({ error: 'User not found' });
     const { password, password_hash, reset_token, otp_code, ...safeUser } = user;
@@ -209,7 +215,7 @@ router.get('/me', requireAuthAsync, async (req: any, res) => {
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
-// POST /api/auth/forgot-password  (OTP flow)
+// POST /api/auth/forgot-password
 router.post('/forgot-password', async (req, res) => {
   res.json({ success: true, message: 'If this email exists, an OTP code has been sent.' });
   try {
@@ -228,9 +234,7 @@ router.post('/verify-otp', async (req, res) => {
   if (!email || !otp) return res.status(400).json({ error: 'Email and OTP required' });
   try {
     const user = await queryOne('SELECT * FROM users WHERE email=?', [email]) as any;
-    if (!user || user.otp_code !== String(otp)) {
-      return res.status(400).json({ error: 'Invalid OTP code' });
-    }
+    if (!user || user.otp_code !== String(otp)) return res.status(400).json({ error: 'Invalid OTP code' });
     if (!user.otp_expires || new Date(user.otp_expires) < new Date()) {
       return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
     }
@@ -253,16 +257,21 @@ router.post('/reset-password', async (req, res) => {
       return res.status(400).json({ error: 'Reset link has expired. Please request a new one.' });
     }
     const password_hash = await bcrypt.hash(password, 10);
-    await execute('UPDATE users SET password_hash=?,password=?,reset_token=NULL,reset_token_expires=NULL WHERE id=?',
-      [password_hash, password, user.id]);
+    // Invalidate all sessions for this user on password reset (FINDING-003)
+    for (const [t, s] of sessions) { if (s.userId === user.id) sessions.delete(t); }
+    // No plaintext password stored (FINDING-007)
+    await execute("UPDATE users SET password_hash=?,password='',reset_token=NULL,reset_token_expires=NULL WHERE id=?",
+      [password_hash, user.id]);
     res.json({ success: true, message: 'Password updated. You can now log in.' });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
-// ─── Admin Routes ─────────────────────────────────────────────────────────────
+// ─── Admin Router (mounted at /api/admin) ────────────────────────────────────
+
+const adminRouter = Router();
 
 // GET /api/admin/users
-router.get('/users', requireAdminAsync, async (req: any, res) => {
+adminRouter.get('/users', requireAdminAsync, async (req: any, res) => {
   try {
     res.json(await query(`
       SELECT u.id,u.name,u.email,u.role,u.status,u.last_login,u.created_at,b.name as branch_name,b.id as branch_id
@@ -273,66 +282,82 @@ router.get('/users', requireAdminAsync, async (req: any, res) => {
 });
 
 // PUT /api/admin/users/:id/status
-router.put('/users/:id/status', requireAdminAsync, async (req, res) => {
+adminRouter.put('/users/:id/status', requireAdminAsync, async (req: any, res) => {
   const { status } = req.body;
   if (!['approved','rejected','inactive','pending'].includes(status)) {
     return res.status(400).json({ error: 'Invalid status' });
   }
   try {
-    const user = await queryOne('SELECT * FROM users WHERE id=?', [req.params.id]) as any;
-    if (!user) return res.status(404).json({ error: 'User not found' });
-    await execute('UPDATE users SET status=? WHERE id=?', [status, req.params.id]);
+    // Scope to same business (FINDING-006)
+    const user = await queryOne('SELECT * FROM users WHERE id=? AND business_id=?',
+      [req.params.id, req.user.business_id]) as any;
+    if (!user) return res.status(404).json({ error: 'User not found or access denied' });
+    await execute('UPDATE users SET status=? WHERE id=? AND business_id=?',
+      [status, req.params.id, req.user.business_id]);
     try {
-      if (status==='approved') await sendAccountApproved({ name: user.name, email: user.email });
-      else if (status==='rejected') await sendAccountRejected({ name: user.name, email: user.email });
-      else if (status==='inactive') await sendAccountDeactivated({ name: user.name, email: user.email });
+      if (status === 'approved') await sendAccountApproved({ name: user.name, email: user.email });
+      else if (status === 'rejected') await sendAccountRejected({ name: user.name, email: user.email });
+      else if (status === 'inactive') await sendAccountDeactivated({ name: user.name, email: user.email });
     } catch {}
     res.json({ success: true });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
 // PUT /api/admin/users/:id
-router.put('/users/:id', requireAdminAsync, async (req, res) => {
+adminRouter.put('/users/:id', requireAdminAsync, async (req: any, res) => {
   const { name, branch_id, role, password } = req.body;
   try {
+    // Scope to same business (FINDING-004)
+    const existing = await queryOne('SELECT id FROM users WHERE id=? AND business_id=?',
+      [req.params.id, req.user.business_id]);
+    if (!existing) return res.status(404).json({ error: 'User not found or access denied' });
     if (password) {
       const password_hash = await bcrypt.hash(password, 10);
-      await execute('UPDATE users SET name=?,branch_id=?,role=?,password=?,password_hash=? WHERE id=?',
-        [name, branch_id, role, password, password_hash, req.params.id]);
+      // No plaintext stored (FINDING-007)
+      await execute("UPDATE users SET name=?,branch_id=?,role=?,password='',password_hash=? WHERE id=? AND business_id=?",
+        [name, branch_id, role, password_hash, req.params.id, req.user.business_id]);
     } else {
-      await execute('UPDATE users SET name=?,branch_id=?,role=? WHERE id=?', [name, branch_id, role, req.params.id]);
+      await execute('UPDATE users SET name=?,branch_id=?,role=? WHERE id=? AND business_id=?',
+        [name, branch_id, role, req.params.id, req.user.business_id]);
     }
     res.json({ success: true });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
 // DELETE /api/admin/users/:id
-router.delete('/users/:id', requireAdminAsync, async (req, res) => {
+adminRouter.delete('/users/:id', requireAdminAsync, async (req: any, res) => {
   try {
-    await execute('UPDATE users SET deleted_at=NOW() WHERE id=?', [req.params.id]);
+    // Scope to same business (FINDING-004)
+    const r = await execute('UPDATE users SET deleted_at=NOW() WHERE id=? AND business_id=?',
+      [req.params.id, req.user.business_id]);
+    if (r.affectedRows === 0) return res.status(404).json({ error: 'User not found or access denied' });
     res.json({ success: true });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
-// POST /api/admin/users/:id/reset-password  (admin generates & emails new password)
-router.post('/users/:id/reset-password', requireAdminAsync, async (req, res) => {
+// POST /api/admin/users/:id/reset-password
+adminRouter.post('/users/:id/reset-password', requireAdminAsync, async (req: any, res) => {
   try {
-    const user = await queryOne('SELECT * FROM users WHERE id=?', [req.params.id]) as any;
-    if (!user) return res.status(404).json({ error: 'User not found' });
-    const newPass = crypto.randomBytes(6).toString('base64').replace(/[^a-zA-Z0-9]/g,'').slice(0, 10) + '!';
+    // Scope to same business (FINDING-004)
+    const user = await queryOne('SELECT * FROM users WHERE id=? AND business_id=?',
+      [req.params.id, req.user.business_id]) as any;
+    if (!user) return res.status(404).json({ error: 'User not found or access denied' });
+    const newPass = crypto.randomBytes(6).toString('base64').replace(/[^a-zA-Z0-9]/g, '').slice(0, 10) + '!';
     const hash = await bcrypt.hash(newPass, 10);
-    await execute('UPDATE users SET password=?,password_hash=?,last_generated_password=? WHERE id=?',
-      [newPass, hash, newPass, user.id]);
+    // Store hash only, keep last_generated_password for resend feature (FINDING-007)
+    await execute("UPDATE users SET password='',password_hash=?,last_generated_password=? WHERE id=?",
+      [hash, newPass, user.id]);
     try { await sendGeneratedPassword({ name: user.name, email: user.email }, newPass); } catch {}
     res.json({ success: true, message: `Password reset and emailed to ${user.email}` });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
-// POST /api/admin/users/:id/resend-password  (resend last generated password)
-router.post('/users/:id/resend-password', requireAdminAsync, async (req, res) => {
+// POST /api/admin/users/:id/resend-password
+adminRouter.post('/users/:id/resend-password', requireAdminAsync, async (req: any, res) => {
   try {
-    const user = await queryOne('SELECT * FROM users WHERE id=?', [req.params.id]) as any;
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    const user = await queryOne('SELECT * FROM users WHERE id=? AND business_id=?',
+      [req.params.id, req.user.business_id]) as any;
+    if (!user) return res.status(404).json({ error: 'User not found or access denied' });
     if (!user.last_generated_password) {
       return res.status(400).json({ error: 'No generated password on record. Use Reset Password instead.' });
     }
@@ -342,36 +367,37 @@ router.post('/users/:id/resend-password', requireAdminAsync, async (req, res) =>
 });
 
 // GET /api/admin/branches
-router.get('/branches', requireAdminAsync, async (req: any, res) => {
+adminRouter.get('/branches', requireAdminAsync, async (req: any, res) => {
   try {
     res.json(await query('SELECT * FROM branches WHERE business_id=? AND deleted_at IS NULL', [req.user.business_id]));
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
 // POST /api/admin/branches
-router.post('/branches', requireAdminAsync, async (req: any, res) => {
+adminRouter.post('/branches', requireAdminAsync, async (req: any, res) => {
   const { name, address, phone } = req.body;
   try {
-    const r = await execute('INSERT INTO branches (business_id,name,address,phone) VALUES (?,?,?,?)', [req.user.business_id, name, address, phone]);
+    const r = await execute('INSERT INTO branches (business_id,name,address,phone) VALUES (?,?,?,?)',
+      [req.user.business_id, name, address, phone]);
     res.json({ id: r.insertId, name, address, phone });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
 // GET /api/admin/smtp
-router.get('/smtp', requireAdminAsync, async (req: any, res) => {
+adminRouter.get('/smtp', requireAdminAsync, async (req: any, res) => {
   try {
     const s = await queryOne('SELECT * FROM smtp_settings WHERE business_id=?', [req.user.business_id]) as any;
     if (s) {
       const { pass, ...safe } = s;
       res.json({ ...safe, pass: pass ? '••••••••' : '' });
     } else {
-      res.json({ host:'smtp.hostinger.com', port:465, secure:1, user:'', pass:'', from_name:'EPOS System', from_email:'' });
+      res.json({ host: 'smtp.hostinger.com', port: 465, secure: 1, user: '', pass: '', from_name: 'EPOS System', from_email: '' });
     }
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
 // PUT /api/admin/smtp
-router.put('/smtp', requireAdminAsync, async (req: any, res) => {
+adminRouter.put('/smtp', requireAdminAsync, async (req: any, res) => {
   const { host, port, secure, user, pass, from_name, from_email } = req.body;
   const businessId = req.user.business_id;
   try {
@@ -379,21 +405,21 @@ router.put('/smtp', requireAdminAsync, async (req: any, res) => {
     if (existing) {
       if (pass && pass !== '••••••••') {
         await execute('UPDATE smtp_settings SET host=?,port=?,secure=?,`user`=?,pass=?,from_name=?,from_email=? WHERE business_id=?',
-          [host, port, secure?1:0, user, pass, from_name, from_email, businessId]);
+          [host, port, secure ? 1 : 0, user, pass, from_name, from_email, businessId]);
       } else {
         await execute('UPDATE smtp_settings SET host=?,port=?,secure=?,`user`=?,from_name=?,from_email=? WHERE business_id=?',
-          [host, port, secure?1:0, user, from_name, from_email, businessId]);
+          [host, port, secure ? 1 : 0, user, from_name, from_email, businessId]);
       }
     } else {
       await execute('INSERT INTO smtp_settings (business_id,host,port,secure,`user`,pass,from_name,from_email) VALUES (?,?,?,?,?,?,?,?)',
-        [businessId, host, port, secure?1:0, user, pass, from_name, from_email]);
+        [businessId, host, port, secure ? 1 : 0, user, pass, from_name, from_email]);
     }
     res.json({ success: true });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
 // POST /api/admin/smtp/test
-router.post('/smtp/test', requireAdminAsync, async (req: any, res) => {
+adminRouter.post('/smtp/test', requireAdminAsync, async (req: any, res) => {
   try {
     const admin = await queryOne('SELECT email FROM users WHERE id=?', [req.userId]) as any;
     await sendTestEmail(admin.email);
@@ -401,4 +427,43 @@ router.post('/smtp/test', requireAdminAsync, async (req: any, res) => {
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
+// ─── Developer / Superadmin Control Center Routes ─────────────────────────────
+// All guarded by role === 'developer' (FINDING-002)
+
+// GET /api/admin/system/businesses
+adminRouter.get('/system/businesses', requireAuthAsync, async (req: any, res) => {
+  if (req.user.role !== 'developer') {
+    return res.status(403).json({ error: 'Developer access required' });
+  }
+  try {
+    res.json(await query('SELECT * FROM businesses WHERE deleted_at IS NULL ORDER BY created_at DESC'));
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+// PUT /api/admin/system/businesses/:id
+adminRouter.put('/system/businesses/:id', requireAuthAsync, async (req: any, res) => {
+  if (req.user.role !== 'developer') {
+    return res.status(403).json({ error: 'Developer access required' });
+  }
+  const { name, email, phone, address, city, state, zip_code, country } = req.body;
+  try {
+    await execute('UPDATE businesses SET name=?,email=?,phone=?,address=?,city=?,state=?,zip_code=?,country=? WHERE id=?',
+      [name, email, phone, address, city, state, zip_code, country, req.params.id]);
+    res.json({ success: true });
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+// PUT /api/admin/system/businesses/:id/status
+adminRouter.put('/system/businesses/:id/status', requireAuthAsync, async (req: any, res) => {
+  if (req.user.role !== 'developer') {
+    return res.status(403).json({ error: 'Developer access required' });
+  }
+  const { status } = req.body;
+  try {
+    await execute('UPDATE businesses SET status=? WHERE id=?', [status, req.params.id]);
+    res.json({ success: true });
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+export { adminRouter };
 export default router;

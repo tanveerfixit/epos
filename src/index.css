@@ -2,12 +2,12 @@
 
 @theme {
   --font-sans: "Inter", "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
-  
+
   --shadow-soft: 0 10px 30px -5px rgba(0, 0, 0, 0.05), 0 4px 12px -3px rgba(0, 0, 0, 0.03);
   --shadow-strong: 0 20px 50px -12px rgba(0, 0, 0, 0.1);
 
   --animate-shake: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
-  
+
   @keyframes shake {
     10%, 90% { transform: translate3d(-1px, 0, 0); }
     20%, 80% { transform: translate3d(2px, 0, 0); }
