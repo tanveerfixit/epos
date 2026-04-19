@@ -281,22 +281,94 @@ router.get('/repairs', async (req: any, res) => {
 
 // POST /api/repairs
 router.post('/repairs', async (req: any, res) => {
-  const { customer_id, device_model, issue, status } = req.body;
+  const { 
+    customer_id, 
+    customer_name, 
+    phone, 
+    device_model, 
+    issue, 
+    status,
+    total_quote,
+    deposit_paid,
+    remaining_balance,
+    payment_method 
+  } = req.body;
+  
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    const [r] = await conn.execute(
-      "INSERT INTO jobs (business_id,branch_id,customer_id,device_model,issue,status) VALUES (?,?,?,?,?,?)",
-      [req.user.business_id, req.user.branch_id, customer_id, device_model, issue, status || 'new']
-    );
-    const jobId = (r as any).insertId;
-    if (customer_id) {
-      await conn.execute('INSERT INTO customer_activity (customer_id,user_id,activity,details) VALUES (?,?,?,?)',
-        [customer_id, req.userId, 'Repair Job Created', `New repair job for ${device_model}: ${issue}`]);
+    
+    let finalCustomerId = customer_id;
+    
+    // If no customer_id but phone is provided, handle customer lookup/creation
+    if (!finalCustomerId && phone) {
+      const [existing] = await conn.execute(
+        'SELECT id FROM customers WHERE phone = ? AND business_id = ? AND deleted_at IS NULL LIMIT 1',
+        [phone, req.user.business_id]
+      );
+      
+      if ((existing as any[]).length > 0) {
+        finalCustomerId = (existing as any[])[0].id;
+      } else {
+        // Create new customer
+        const { first_name, last_name } = req.body;
+        const combinedName = `${first_name || ''} ${last_name || ''}`.trim();
+        
+        if (!combinedName) {
+          throw new Error('Customer first name is required for new repair jobs.');
+        }
+
+        const [newCust] = await conn.execute(
+          'INSERT INTO customers (business_id, branch_id, name, first_name, last_name, phone) VALUES (?, ?, ?, ?, ?, ?)',
+          [req.user.business_id, req.user.branch_id, combinedName, first_name || '', last_name || '', phone]
+        );
+        finalCustomerId = (newCust as any).insertId;
+      }
     }
+
+    const [r] = await conn.execute(
+      `INSERT INTO jobs (
+        business_id, branch_id, customer_id, device_model, issue, status, 
+        total_quote, deposit_paid, remaining_balance, payment_method
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        req.user.business_id, 
+        req.user.branch_id, 
+        finalCustomerId || null, 
+        device_model, 
+        issue, 
+        status || 'new',
+        total_quote || 0,
+        deposit_paid || 0,
+        remaining_balance || 0,
+        payment_method || null
+      ]
+    );
+    
+    const jobId = (r as any).insertId;
+    
+    if (finalCustomerId) {
+      await conn.execute('INSERT INTO customer_activity (customer_id, user_id, activity, details) VALUES (?, ?, ?, ?)',
+        [finalCustomerId, req.userId, 'Repair Job Created', `New repair job for ${device_model}: ${issue}`]);
+      
+      // If there's a deposit, record it as a customer payment/activity too
+      if (deposit_paid > 0) {
+        await conn.execute(
+          'INSERT INTO payments (customer_id, type, method, amount) VALUES (?, ?, ?, ?)',
+          [finalCustomerId, 'deposit', payment_method || 'Cash', deposit_paid]
+        );
+        // We don't necessarily update wallet_balance here unless it's a general deposit, 
+        // but for repairs, it's usually a job-specific deposit.
+      }
+    }
+    
     await conn.commit();
-    res.json({ id: jobId });
-  } catch (e: any) { await conn.rollback(); res.status(500).json({ error: e.message }); }
+    res.json({ id: jobId, customer_id: finalCustomerId });
+  } catch (e: any) { 
+    await conn.rollback(); 
+    console.error('[POST /api/repairs] Error:', e.message);
+    res.status(500).json({ error: e.message }); 
+  }
   finally { conn.release(); }
 });
 

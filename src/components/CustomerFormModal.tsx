@@ -133,8 +133,9 @@ export default function CustomerFormModal({ onClose, onSave, initialData }: Cust
               </div>
 
               <div className="flex items-center">
-                <label className="w-1/3 text-sm font-bold text-slate-700">Phone No.</label>
+                <label className="w-1/3 text-sm font-bold text-slate-700">Phone No.<span className="text-red-500">*</span></label>
                 <input
+                  required
                   type="text"
                   className="w-2/3 border border-[#ced4da] rounded px-3 py-1.5 text-sm focus:border-[#80bdff] focus:outline-none focus:ring-4 focus:ring-blue-500/10"
                   value={formData.phone}

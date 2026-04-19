@@ -142,6 +142,10 @@ export interface Repair {
   device_model: string;
   issue: string;
   status: 'new' | 'diagnosed' | 'repairing' | 'completed' | 'collected';
+  total_quote?: number;
+  deposit_paid?: number;
+  remaining_balance?: number;
+  payment_method?: string;
   created_at: string;
 }
 

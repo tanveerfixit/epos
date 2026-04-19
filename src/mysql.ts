@@ -560,6 +560,10 @@ export async function initSchema() {
         device_model VARCHAR(255),
         issue TEXT,
         status VARCHAR(50),
+        total_quote DECIMAL(10,2) DEFAULT 0,
+        deposit_paid DECIMAL(10,2) DEFAULT 0,
+        remaining_balance DECIMAL(10,2) DEFAULT 0,
+        payment_method VARCHAR(100),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -663,6 +667,17 @@ export async function initSchema() {
         FOREIGN KEY (report_id) REFERENCES closing_reports(id) ON DELETE CASCADE
       )
     `);
+
+    // Migration: add financial fields to jobs if missing
+    try {
+      await conn.query('ALTER TABLE jobs ADD COLUMN total_quote DECIMAL(10,2) DEFAULT 0 AFTER status');
+      await conn.query('ALTER TABLE jobs ADD COLUMN deposit_paid DECIMAL(10,2) DEFAULT 0 AFTER total_quote');
+      await conn.query('ALTER TABLE jobs ADD COLUMN remaining_balance DECIMAL(10,2) DEFAULT 0 AFTER deposit_paid');
+      await conn.query('ALTER TABLE jobs ADD COLUMN payment_method VARCHAR(100) AFTER remaining_balance');
+      console.log('[MySQL] Migration: added financial columns to jobs');
+    } catch (e: any) {
+      if (!e.message?.includes('Duplicate column')) throw e;
+    }
 
     await conn.query('SET FOREIGN_KEY_CHECKS = 1');
     console.log('[MySQL] Schema initialised successfully');

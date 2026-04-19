@@ -31,12 +31,14 @@ router.post('/', async (req: any, res) => {
   const { name, phone, email, first_name, last_name, secondary_phone, fax, offers_email,
     company, customer_type, address_line1, address_line2, city, state, zip_code, country, website, alert_message } = req.body;
   try {
+    // Derive a combined name if not explicitly provided
+    const fullName = name || `${first_name || ''} ${last_name || ''}`.trim() || 'Unknown';
     const r = await execute(`
       INSERT INTO customers (business_id,branch_id,name,phone,email,first_name,last_name,secondary_phone,fax,offers_email,
         company,customer_type,address_line1,address_line2,city,state,zip_code,country,website,alert_message)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      [req.user.business_id, req.user.branch_id, name, phone, email, first_name, last_name, secondary_phone, fax, offers_email ? 1 : 0,
-       company, customer_type, address_line1, address_line2, city, state, zip_code, country, website, alert_message]);
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [req.user.business_id, req.user.branch_id, fullName, phone || null, email || null, first_name || null, last_name || null, secondary_phone || null, fax || null, offers_email ? 1 : 0,
+       company || null, customer_type || null, address_line1 || null, address_line2 || null, city || null, state || null, zip_code || null, country || null, website || null, alert_message || null]);
     res.json({ id: r.insertId });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
