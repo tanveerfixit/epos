@@ -10,6 +10,7 @@ interface CustomerSelectorProps {
   onSelectCustomer: (customer: Customer) => void;
   onClearCustomer: () => void;
   onOpenNewCustomerModal: () => void;
+  onOpenDepositModal?: () => void;
 }
 
 export const CustomerSelector: React.FC<CustomerSelectorProps> = ({
@@ -19,14 +20,15 @@ export const CustomerSelector: React.FC<CustomerSelectorProps> = ({
   customerResults,
   onSelectCustomer,
   onClearCustomer,
-  onOpenNewCustomerModal
+  onOpenNewCustomerModal,
+  onOpenDepositModal
 }) => {
   return (
-    <div className="bg-white rounded-md shadow-sm border border-slate-200 p-4">
+    <div className="p-5">
       <div className="flex justify-between items-center mb-3">
         <div className="flex items-center gap-2">
-          <User size={18} className="text-slate-500" />
-          <h3 className="font-bold text-slate-800 text-sm">Customer</h3>
+          <User size={18} className="text-[var(--text-muted)]" />
+          <h3 className="font-bold text-[var(--text-main)] text-sm">Customer</h3>
         </div>
         {!selectedCustomer && (
           <button 
@@ -40,19 +42,19 @@ export const CustomerSelector: React.FC<CustomerSelectorProps> = ({
       </div>
 
       {selectedCustomer ? (
-        <div className="bg-blue-50 border border-blue-100 rounded-md p-3 flex justify-between items-center animate-in fade-in slide-in-from-top-1">
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/40 rounded-md p-3 flex justify-between items-center animate-in fade-in slide-in-from-top-1">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
               {selectedCustomer.first_name?.[0] || selectedCustomer.name?.[0] || '?'}
             </div>
             <div>
-              <p className="font-bold text-blue-900 text-sm">
+              <p className="font-bold text-blue-900 dark:text-blue-200 text-sm">
                 {selectedCustomer.first_name ? `${selectedCustomer.first_name} ${selectedCustomer.last_name}` : selectedCustomer.name}
               </p>
               <div className="flex items-center gap-2">
-                <p className="text-xs text-blue-600 font-medium">{selectedCustomer.phone}</p>
+                <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">{selectedCustomer.phone}</p>
                 {selectedCustomer.wallet_balance !== undefined && (
-                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
+                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/20 px-1.5 py-0.5 rounded border border-emerald-100 dark:border-emerald-900/40">
                     Wallet: €{selectedCustomer.wallet_balance.toFixed(2)}
                   </span>
                 )}
@@ -60,23 +62,9 @@ export const CustomerSelector: React.FC<CustomerSelectorProps> = ({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {selectedCustomer.name !== 'Walk-in Customer' && (
+            {selectedCustomer.name !== 'Walk-in Customer' && onOpenDepositModal && (
               <button 
-                onClick={() => {
-                  const amount = prompt('Enter deposit amount:');
-                  if (amount && !isNaN(parseFloat(amount))) {
-                    fetch(`/api/customers/${selectedCustomer.id}/payments`, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ amount: parseFloat(amount), method: 'Cash', note: 'Manual Deposit' })
-                    }).then(res => res.json()).then(data => {
-                      if (data.success) {
-                        alert('Deposit successful');
-                        window.location.reload(); // Simple refresh to update balance
-                      }
-                    });
-                  }
-                }}
+                onClick={onOpenDepositModal}
                 className="p-1.5 text-emerald-600 hover:bg-emerald-100 rounded-lg transition-all"
                 title="Deposit to Wallet"
               >
@@ -94,32 +82,32 @@ export const CustomerSelector: React.FC<CustomerSelectorProps> = ({
       ) : (
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search size={14} className="text-slate-400" />
+            <Search size={14} className="text-[var(--text-muted-more)]" />
           </div>
           <input 
             type="text"
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+            className="w-full pl-9 pr-4 py-2 bg-[var(--bg-app)] border border-[var(--border-base)] rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-[var(--bg-card)] transition-all text-[var(--text-main)] placeholder:text-[var(--text-muted-more)]"
             placeholder="Search customer by phone or name..."
             value={customerSearch}
             onChange={(e) => setCustomerSearch(e.target.value)}
           />
           
           {customerSearch && customerResults.length > 0 && (
-            <div className="absolute z-20 left-0 right-0 mt-1 bg-white rounded-md shadow-xl border border-slate-200 max-h-[200px] overflow-y-auto">
+            <div className="absolute z-20 left-0 right-0 mt-1 bg-[var(--bg-card)] rounded-md shadow-xl border border-[var(--border-base)] max-h-[200px] overflow-y-auto">
               {customerResults.map(customer => (
                 <button
                   key={customer.id}
                   onClick={() => onSelectCustomer(customer)}
-                  className="w-full text-left p-3 hover:bg-blue-50 transition-colors flex items-center gap-3 border-b border-slate-50 last:border-0"
+                  className="w-full text-left p-3 hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-3 border-b border-[var(--border-base)] last:border-0"
                 >
-                  <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 text-xs font-bold">
+                  <div className="w-8 h-8 bg-[var(--bg-app)] rounded-full flex items-center justify-center text-[var(--text-muted)] text-xs font-bold">
                     {customer.first_name?.[0] || customer.name?.[0] || '?'}
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-slate-800">
+                    <p className="text-sm font-bold text-[var(--text-main)]">
                       {customer.first_name ? `${customer.first_name} ${customer.last_name}` : customer.name}
                     </p>
-                    <p className="text-[10px] text-slate-500 font-mono">{customer.phone}</p>
+                    <p className="text-[10px] text-[var(--text-muted)] font-mono">{customer.phone}</p>
                   </div>
                 </button>
               ))}

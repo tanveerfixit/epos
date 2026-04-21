@@ -45,7 +45,9 @@ export default function RepairIntakeForm({ onClose, onSuccess, initialCustomerId
     if (cleanSearch.length >= targetLength) {
       const match = customers.find(c => {
         const cleanPhone = (c.phone || '').replace(/[\s\-\(\)]/g, '');
-        return cleanPhone.includes(cleanSearch) || cleanSearch.includes(cleanPhone);
+        // Must have a phone number to match — prevents Walk-in/empty-phone false positives
+        if (!cleanPhone) return false;
+        return cleanPhone === cleanSearch || cleanPhone.endsWith(cleanSearch) || cleanSearch.endsWith(cleanPhone);
       });
       
       if (match) {

@@ -679,6 +679,14 @@ export async function initSchema() {
       if (!e.message?.includes('Duplicate column')) throw e;
     }
 
+    // Migration: add notes column to jobs if missing
+    try {
+      await conn.query('ALTER TABLE jobs ADD COLUMN notes TEXT NULL AFTER payment_method');
+      console.log('[MySQL] Migration: added notes column to jobs');
+    } catch (e: any) {
+      if (!e.message?.includes('Duplicate column')) throw e;
+    }
+
     await conn.query('SET FOREIGN_KEY_CHECKS = 1');
     console.log('[MySQL] Schema initialised successfully');
   } finally {

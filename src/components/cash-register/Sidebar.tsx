@@ -14,6 +14,7 @@ interface SidebarProps {
   onSelectCustomer: (customer: Customer) => void;
   onClearCustomer: () => void;
   onOpenNewCustomerModal: () => void;
+  onOpenDepositModal?: () => void;
   
   subtotal: number;
   tax: number;
@@ -38,43 +39,56 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = (props) => {
   return (
-    <div className="w-[380px] flex flex-col gap-4 overflow-y-auto pr-2 custom-scrollbar">
-      <CustomerSelector 
-        selectedCustomer={props.selectedCustomer}
-        customerSearch={props.customerSearch}
-        setCustomerSearch={props.setCustomerSearch}
-        customerResults={props.customerResults}
-        onSelectCustomer={props.onSelectCustomer}
-        onClearCustomer={props.onClearCustomer}
-        onOpenNewCustomerModal={props.onOpenNewCustomerModal}
-      />
+    <div className="w-[380px] h-full flex flex-col bg-[var(--bg-card)] border-l border-[var(--border-base)] overflow-hidden transition-colors duration-300">
+      {/* Scrollable Content Area */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
+        <div>
+          <CustomerSelector 
+            selectedCustomer={props.selectedCustomer}
+            customerSearch={props.customerSearch}
+            setCustomerSearch={props.setCustomerSearch}
+            customerResults={props.customerResults}
+            onSelectCustomer={props.onSelectCustomer}
+            onClearCustomer={props.onClearCustomer}
+            onOpenNewCustomerModal={props.onOpenNewCustomerModal}
+            onOpenDepositModal={props.onOpenDepositModal}
+          />
+        </div>
+        
+        <div>
+          <TotalsPanel 
+            subtotal={props.subtotal}
+            tax={props.tax}
+            discount={props.discount}
+            total={props.total}
+          />
+        </div>
+        
+        <div>
+          <PaymentPanel 
+            addedPayments={props.addedPayments}
+            paymentMethod={props.paymentMethod}
+            setPaymentMethod={props.setPaymentMethod}
+            paymentAmount={props.paymentAmount}
+            setPaymentAmount={props.setPaymentAmount}
+            onAddPayment={props.onAddPayment}
+            onRemovePayment={props.onRemovePayment}
+            remainingAmount={props.remainingAmount}
+            customerBalance={props.selectedCustomer?.wallet_balance || 0}
+            availableMethods={props.availableMethods}
+          />
+        </div>
+      </div>
       
-      <TotalsPanel 
-        subtotal={props.subtotal}
-        tax={props.tax}
-        discount={props.discount}
-        total={props.total}
-      />
-      
-      <PaymentPanel 
-        addedPayments={props.addedPayments}
-        paymentMethod={props.paymentMethod}
-        setPaymentMethod={props.setPaymentMethod}
-        paymentAmount={props.paymentAmount}
-        setPaymentAmount={props.setPaymentAmount}
-        onAddPayment={props.onAddPayment}
-        onRemovePayment={props.onRemovePayment}
-        remainingAmount={props.remainingAmount}
-        customerBalance={props.selectedCustomer?.wallet_balance || 0}
-        availableMethods={props.availableMethods}
-      />
-      
-      <CheckoutActions 
-        onCheckout={props.onCheckout}
-        onClearCart={props.onClearCart}
-        isCartEmpty={props.isCartEmpty}
-        isPaymentComplete={props.isPaymentComplete}
-      />
+      {/* Sticky Footer Area */}
+      <div className="shrink-0 p-5 border-t border-[var(--border-base)] bg-[var(--bg-card)]">
+        <CheckoutActions 
+          onCheckout={props.onCheckout}
+          onClearCart={props.onClearCart}
+          isCartEmpty={props.isCartEmpty}
+          isPaymentComplete={props.isPaymentComplete}
+        />
+      </div>
     </div>
   );
 };

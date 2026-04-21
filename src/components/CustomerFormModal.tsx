@@ -32,8 +32,30 @@ export default function CustomerFormModal({ onClose, onSave, initialData }: Cust
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const name = `${formData.first_name} ${formData.last_name}`.trim();
-    onSave({ ...formData, name });
+    const name = `${formData.first_name || ''} ${formData.last_name || ''}`.trim();
+    // Build a clean payload — only send known fields with explicit null for empties
+    // This prevents mysql2 "undefined bind parameter" errors
+    const payload = {
+      name,
+      first_name:      formData.first_name      || null,
+      last_name:       formData.last_name        || null,
+      phone:           formData.phone            || null,
+      email:           formData.email            || null,
+      secondary_phone: formData.secondary_phone  || null,
+      fax:             formData.fax              || null,
+      offers_email:    formData.offers_email     ? 1 : 0,
+      company:         formData.company          || null,
+      customer_type:   formData.customer_type    || null,
+      address_line1:   formData.address_line1    || null,
+      address_line2:   formData.address_line2    || null,
+      city:            formData.city             || null,
+      state:           formData.state            || null,
+      zip_code:        formData.zip_code         || null,
+      country:         formData.country          || null,
+      website:         formData.website          || null,
+      alert_message:   formData.alert_message    || null,
+    };
+    onSave(payload);
   };
 
   return (

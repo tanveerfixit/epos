@@ -14,16 +14,16 @@ router.get('/eod-data', async (req: any, res) => {
       SELECT p.*, u.name as user_name, i.invoice_number, c.name as customer_name
       FROM payments p
       LEFT JOIN invoices i ON p.invoice_id=i.id
-      LEFT JOIN users u ON i.user_id=u.id
-      LEFT JOIN customers c ON i.customer_id=c.id
-      WHERE DATE(p.paid_at)=? AND p.type='sale_payment' AND i.business_id=? 
+      LEFT JOIN users u ON i.user_id=u.id OR (i.type='repair' AND u.id=i.user_id)
+      LEFT JOIN customers c ON p.customer_id=c.id
+      WHERE DATE(p.paid_at)=? AND p.invoice_id IS NOT NULL AND i.business_id=? 
       ${!isSuper ? 'AND i.branch_id=?' : ''}
     `, !isSuper ? [date, req.user.business_id, branchId] : [date, req.user.business_id]);
 
     const otherMovements = await query(`
       SELECT p.*, c.name as customer_name FROM payments p
       LEFT JOIN customers c ON p.customer_id=c.id
-      WHERE DATE(p.paid_at)=? AND p.type!='sale_payment' AND c.business_id=?
+      WHERE DATE(p.paid_at)=? AND p.invoice_id IS NULL AND c.business_id=?
       ${!isSuper ? 'AND c.branch_id=?' : ''}
     `, !isSuper ? [date, req.user.business_id, branchId] : [date, req.user.business_id]);
 

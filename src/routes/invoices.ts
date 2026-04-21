@@ -5,14 +5,26 @@ const router = Router();
 
 router.get('/', async (req: any, res) => {
   try {
+    const { startDate, endDate } = req.query;
     const isSuper = req.user.role === 'superadmin';
-    const sql = `
+    
+    let sql = `
       SELECT i.*, c.name as customer_name FROM invoices i
       LEFT JOIN customers c ON i.customer_id=c.id
       WHERE i.business_id=? ${!isSuper ? 'AND i.branch_id=?' : ''}
-      ORDER BY i.created_at DESC
     `;
-    const params = !isSuper ? [req.user.business_id, req.user.branch_id] : [req.user.business_id];
+    const params: any[] = !isSuper ? [req.user.business_id, req.user.branch_id] : [req.user.business_id];
+
+    if (startDate) {
+      sql += ' AND i.created_at >= ?';
+      params.push(startDate + ' 00:00:00');
+    }
+    if (endDate) {
+      sql += ' AND i.created_at <= ?';
+      params.push(endDate + ' 23:59:59');
+    }
+
+    sql += ' ORDER BY i.created_at DESC';
     res.json(await query(sql, params));
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
@@ -64,13 +76,19 @@ router.post('/', async (req, res) => {
       );
       finalCustomerId = (wRows as any[])[0]?.id || null;
     }
-    const now = new Date();
-    const days = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
-    const day = days[now.getDay()];
-    const dateStr = now.toISOString().slice(0,10).replace(/-/g,'');
-    const [lastInv] = await conn.execute('SELECT id FROM invoices ORDER BY id DESC LIMIT 1');
-    const nextSerial = String(((lastInv as any[])[0]?.id || 0) + 1).padStart(2, '0');
-    const invoiceNumber = `INV${nextSerial}-${day}-${dateStr}`;
+    const isDeposit = items.some((item: any) => item.is_deposit);
+    const prefix = isDeposit ? 'DE' : 'SA';
+
+    const [lastInv] = await conn.execute(
+      `SELECT invoice_number FROM invoices WHERE invoice_number LIKE '${prefix}-%' AND business_id=? ORDER BY id DESC LIMIT 1`,
+      [req.user.business_id]
+    );
+    let nextNum = 1;
+    if ((lastInv as any[]).length > 0) {
+      const lastNum = parseInt((lastInv as any[])[0].invoice_number.split('-')[1]);
+      if (!isNaN(lastNum)) nextNum = lastNum + 1;
+    }
+    const invoiceNumber = `${prefix}-${String(nextNum).padStart(3, '0')}`;
     const totalPaid = (payments || []).reduce((s: number, p: any) => s + p.amount, 0);
     const dueAmount = Math.max(0, grand_total - totalPaid);
     let status = 'paid';
@@ -100,6 +118,12 @@ router.post('/', async (req, res) => {
           INSERT INTO branch_stock (branch_id,sku_id,quantity) VALUES (?,?,-1)
           ON DUPLICATE KEY UPDATE quantity=quantity-1
         `, [req.user.branch_id, skuId]);
+      }
+      
+      if (item.is_deposit && finalCustomerId) {
+        await conn.execute('UPDATE customers SET wallet_balance=wallet_balance+? WHERE id=?', [item.total, finalCustomerId]);
+        await conn.execute('INSERT INTO payments (customer_id,invoice_id,type,method,amount) VALUES (?,?,?,?,?)',
+          [finalCustomerId, invoiceId, 'deposit', 'Store Deposit', item.total]);
       }
     }
     for (const p of (payments || [])) {

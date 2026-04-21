@@ -146,7 +146,8 @@ export interface Repair {
   deposit_paid?: number;
   remaining_balance?: number;
   payment_method?: string;
-  created_at: string;
+  notes?: string;
+  created_at?: string;
 }
 
 export interface Category {

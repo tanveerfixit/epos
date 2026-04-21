@@ -351,14 +351,42 @@ router.post('/repairs', async (req: any, res) => {
       await conn.execute('INSERT INTO customer_activity (customer_id, user_id, activity, details) VALUES (?, ?, ?, ?)',
         [finalCustomerId, req.userId, 'Repair Job Created', `New repair job for ${device_model}: ${issue}`]);
       
-      // If there's a deposit, record it as a customer payment/activity too
-      if (deposit_paid > 0) {
-        await conn.execute(
-          'INSERT INTO payments (customer_id, type, method, amount) VALUES (?, ?, ?, ?)',
-          [finalCustomerId, 'deposit', payment_method || 'Cash', deposit_paid]
+      // If there's a deposit, record it as a customer invoice and payment
+      if (Number(deposit_paid) > 0) {
+        const [lastRE] = await conn.execute(
+          "SELECT invoice_number FROM invoices WHERE invoice_number LIKE 'RE-%' AND business_id=? ORDER BY id DESC LIMIT 1",
+          [req.user.business_id]
         );
-        // We don't necessarily update wallet_balance here unless it's a general deposit, 
-        // but for repairs, it's usually a job-specific deposit.
+        let nextRENum = 1;
+        if ((lastRE as any[]).length > 0) {
+          const lastNum = parseInt((lastRE as any[])[0].invoice_number.split('-')[1]);
+          if (!isNaN(lastNum)) nextRENum = lastNum + 1;
+        }
+        const invoiceNumber = `RE-${String(nextRENum).padStart(3, '0')}`;
+        
+        const [invResult] = await conn.execute(
+          `INSERT INTO invoices 
+            (business_id, branch_id, user_id, customer_id, invoice_number, type, 
+             subtotal, tax_total, discount_total, grand_total, paid_amount, due_amount, status)
+           VALUES (?, ?, ?, ?, ?, 'repair', ?, 0, 0, ?, ?, 0, 'paid')`,
+          [
+            req.user.business_id, req.user.branch_id, req.userId,
+            finalCustomerId || null, invoiceNumber,
+            deposit_paid, deposit_paid, deposit_paid
+          ]
+        );
+        const invoiceId = (invResult as any).insertId;
+
+        await conn.execute(
+          'INSERT INTO payments (customer_id, invoice_id, type, method, amount) VALUES (?, ?, ?, ?, ?)',
+          [finalCustomerId, invoiceId, 'deposit', payment_method || 'Cash', deposit_paid]
+        );
+        
+        await conn.execute(
+          'INSERT INTO customer_activity (customer_id, user_id, activity, details) VALUES (?, ?, ?, ?)',
+          [finalCustomerId, req.userId, 'Repair Deposit Received', 
+           `Deposit of €${Number(deposit_paid).toFixed(2)} received for job #${jobId}. Invoice: ${invoiceNumber}`]
+        );
       }
     }
     
@@ -370,6 +398,112 @@ router.post('/repairs', async (req: any, res) => {
     res.status(500).json({ error: e.message }); 
   }
   finally { conn.release(); }
+});
+
+// PUT /api/repairs/:id — update status, notes, collect remaining payment
+router.put('/repairs/:id', async (req: any, res) => {
+  const { status, notes, collected_amount, collected_method } = req.body;
+  const jobId = req.params.id;
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    // Fetch current job record
+    const [rows] = await conn.execute(
+      'SELECT * FROM jobs WHERE id = ? AND business_id = ?',
+      [jobId, req.user.business_id]
+    );
+    const job = (rows as any[])[0];
+    if (!job) throw new Error('Repair job not found or access denied.');
+
+    // Build update fields dynamically
+    const updates: string[] = [];
+    const values: any[] = [];
+
+    if (status) {
+      updates.push('status = ?');
+      values.push(status);
+    }
+
+    // Append notes with timestamp
+    if (notes && notes.trim()) {
+      const timestamp = new Date().toLocaleString('en-IE', { 
+        day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit' 
+      });
+      const newNote = `[${timestamp}] ${notes.trim()}`;
+      const existingNotes = job.notes ? job.notes + '\n' + newNote : newNote;
+      updates.push('notes = ?');
+      values.push(existingNotes);
+    }
+
+    const collected = parseFloat(collected_amount) || 0;
+    let invoiceNumber: string | null = null;
+
+    if (collected > 0) {
+      const newRemaining = Math.max(0, (job.remaining_balance || 0) - collected);
+      const newDeposit = (job.deposit_paid || 0) + collected;
+
+      updates.push('remaining_balance = ?', 'deposit_paid = ?');
+      values.push(newRemaining, newDeposit);
+
+      // Auto-create invoice
+      const [lastRE] = await conn.execute(
+        "SELECT invoice_number FROM invoices WHERE invoice_number LIKE 'RE-%' AND business_id=? ORDER BY id DESC LIMIT 1",
+        [req.user.business_id]
+      );
+      let nextRENum = 1;
+      if ((lastRE as any[]).length > 0) {
+        const lastNum = parseInt((lastRE as any[])[0].invoice_number.split('-')[1]);
+        if (!isNaN(lastNum)) nextRENum = lastNum + 1;
+      }
+      invoiceNumber = `RE-${String(nextRENum).padStart(3, '0')}`;
+
+      const [invResult] = await conn.execute(
+        `INSERT INTO invoices 
+          (business_id, branch_id, user_id, customer_id, invoice_number, type, 
+           subtotal, tax_total, discount_total, grand_total, paid_amount, due_amount, status)
+         VALUES (?, ?, ?, ?, ?, 'repair', ?, 0, 0, ?, ?, 0, 'paid')`,
+        [
+          req.user.business_id, req.user.branch_id, req.userId,
+          job.customer_id || null, invoiceNumber,
+          collected, collected, collected
+        ]
+      );
+      const invoiceId = (invResult as any).insertId;
+
+      // Record payment against customer
+      if (job.customer_id) {
+        await conn.execute(
+          'INSERT INTO payments (customer_id, invoice_id, type, method, amount) VALUES (?, ?, ?, ?, ?)',
+          [job.customer_id, invoiceId, 'repair_payment', collected_method || 'Cash', collected]
+        );
+        await conn.execute(
+          'INSERT INTO customer_activity (customer_id, user_id, activity, details) VALUES (?, ?, ?, ?)',
+          [job.customer_id, req.userId, 'Repair Payment Received', 
+           `€${collected.toFixed(2)} received for job #${jobId} (${job.device_model}). Invoice: ${invoiceNumber}`]
+        );
+      }
+    }
+
+    // Apply updates to the job
+    if (updates.length) {
+      values.push(jobId, req.user.business_id);
+      await conn.execute(
+        `UPDATE jobs SET ${updates.join(', ')} WHERE id = ? AND business_id = ?`,
+        values
+      );
+    }
+
+    await conn.commit();
+    res.json({ success: true, invoice_number: invoiceNumber });
+  } catch (e: any) {
+    await conn.rollback();
+    console.error('[PUT /api/repairs/:id] Error:', e.message);
+    res.status(500).json({ error: e.message });
+  } finally {
+    conn.release();
+  }
 });
 
 // GET /api/search

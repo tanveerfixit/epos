@@ -38,13 +38,13 @@ const HomeMenu: React.FC<HomeMenuProps> = ({ onNavigate }) => {
   ];
 
   return (
-    <div className="p-4 bg-[#f4f7f9] h-full overflow-auto">
+    <div className="p-4 bg-[var(--bg-app)] h-full overflow-auto transition-colors duration-300">
       <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 2xl:grid-cols-14 gap-3 max-w-[1600px]">
         {menuTiles.map((tile) => (
           <button
             key={tile.id}
             onClick={() => onNavigate(tile.id)}
-            className="flex flex-col items-center justify-center bg-[#0081a7] hover:bg-[#007091] text-white p-2 rounded shadow-sm transition-all aspect-square group w-full"
+            className="flex flex-col items-center justify-center bg-[#0081a7] dark:bg-blue-600/80 hover:bg-[#007091] dark:hover:bg-blue-600 text-white p-2 rounded shadow-sm transition-all aspect-square group w-full border border-white/5"
           >
             <div className="mb-1 group-hover:scale-110 transition-transform">
               <tile.icon size={22} strokeWidth={1.5} />

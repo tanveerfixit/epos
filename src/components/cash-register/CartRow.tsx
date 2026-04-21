@@ -21,44 +21,42 @@ export const CartRow: React.FC<CartRowProps> = ({
   const total = price * item.quantity;
 
   return (
-    <tr className="group hover:bg-slate-50/50 transition-colors">
+    <tr className="group hover:bg-[var(--bg-hover)] transition-colors">
       <td className="py-4 pl-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-slate-100 rounded-md flex items-center justify-center text-slate-400 group-hover:bg-white group-hover:shadow-sm transition-all">
-            <Smartphone size={20} />
-          </div>
-          <div>
-            <p className="font-bold text-slate-800 leading-tight">{item.product_name}</p>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-[10px] font-mono bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded uppercase tracking-tighter">
-                {item.sku_code || 'N/A'}
-              </span>
-              {item.product_type === 'serialized' && (
+          <div className="flex items-center gap-1.5 text-sm">
+            <p className="font-bold text-[var(--text-main)]">{item.product_name}</p>
+            <span className="text-[var(--text-muted-more)]">|</span>
+            <span className="text-[11px] font-mono text-[var(--text-muted)] uppercase tracking-tighter">
+              {item.sku_code || 'N/A'}
+            </span>
+            {item.product_type === 'serialized' && (
+              <>
+                <span className="text-[var(--text-muted-more)]">|</span>
                 <button 
                   onClick={() => onOpenImeiSelector(item)}
-                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-tighter flex items-center gap-1 transition-colors ${
+                  className={`text-[11px] font-bold px-1.5 py-0.5 rounded uppercase tracking-tighter transition-colors ${
                     item.imei 
-                      ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' 
-                      : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/30' 
+                      : 'bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/30'
                   }`}
                 >
-                  <Smartphone size={10} />
                   {item.imei || 'Select IMEI'}
                 </button>
-              )}
-            </div>
+              </>
+            )}
           </div>
         </div>
       </td>
       <td className="py-4 text-right">
         <div className="flex items-center justify-end">
-          <span className="text-slate-400 mr-1">€</span>
+          <span className="text-[var(--text-muted-more)] mr-1">€</span>
           <input 
             type="number"
             value={price}
             onChange={(e) => onUpdatePrice(item.id, parseFloat(e.target.value) || 0, item.device_id)}
             onFocus={(e) => e.target.select()}
-            className="w-20 text-right font-mono font-bold text-slate-600 bg-transparent border-b border-transparent hover:border-slate-200 focus:border-blue-500 focus:outline-none transition-all"
+            className="w-20 text-right font-mono font-bold text-[var(--text-main)] bg-transparent border-b border-transparent hover:border-[var(--border-base)] focus:border-blue-500 focus:outline-none transition-all"
             step="0.01"
           />
         </div>
@@ -67,16 +65,16 @@ export const CartRow: React.FC<CartRowProps> = ({
         <div className="flex items-center justify-center gap-1">
           <button 
             onClick={() => onUpdateQuantity(item.id, -1, item.device_id)}
-            className="p-1.5 rounded-md hover:bg-white hover:shadow-sm text-slate-400 hover:text-slate-600 transition-all border border-transparent hover:border-slate-200"
+            className="p-1.5 rounded-md hover:bg-[var(--bg-card)] hover:shadow-sm text-[var(--text-muted-more)] hover:text-[var(--text-main)] transition-all border border-transparent hover:border-[var(--border-base)]"
           >
             <Minus size={14} />
           </button>
-          <div className="w-10 text-center font-mono font-bold text-slate-800 bg-slate-50 py-1 rounded-md border border-slate-100">
+          <div className="w-10 text-center font-mono font-bold text-[var(--text-main)] text-sm bg-[var(--bg-app)] py-1 rounded-md border border-[var(--border-base)]">
             {item.quantity}
           </div>
           <button 
             onClick={() => onUpdateQuantity(item.id, 1, item.device_id)}
-            className="p-1.5 rounded-md hover:bg-white hover:shadow-sm text-slate-400 hover:text-slate-600 transition-all border border-transparent hover:border-slate-200"
+            className="p-1.5 rounded-md hover:bg-[var(--bg-card)] hover:shadow-sm text-[var(--text-muted-more)] hover:text-[var(--text-main)] transition-all border border-transparent hover:border-[var(--border-base)]"
           >
             <Plus size={14} />
           </button>
@@ -88,7 +86,7 @@ export const CartRow: React.FC<CartRowProps> = ({
       <td className="py-4 pr-4 text-right">
         <button 
           onClick={() => onRemove(item.id, item.device_id)}
-          className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-md transition-all"
+          className="p-2 text-[var(--text-muted-more)] hover:text-red-500 hover:bg-red-500/10 rounded-md transition-all"
         >
           <Trash2 size={18} />
         </button>

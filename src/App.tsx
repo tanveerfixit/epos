@@ -14,7 +14,9 @@ import {
   Banknote,
   ArrowLeftRight,
   Shield,
-  LogOut
+  LogOut,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import CashRegister from './components/CashRegister';
@@ -61,6 +63,22 @@ function AppInner() {
   const [selectedPoId, setSelectedPoId] = useState<number | null>(null);
   const [selectedPoNumber, setSelectedPoNumber] = useState<string | null>(null);
   const [previousView, setPreviousView] = useState<View | null>(null);
+  const [initiateDeposit, setInitiateDeposit] = useState(false);
+
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const saved = localStorage.getItem('theme');
+    return saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  });
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDarkMode]);
 
   // Check for reset token in URL
   useEffect(() => {
@@ -98,6 +116,7 @@ function AppInner() {
     setSelectedProductId(null);
     setSelectedInvoiceId(null);
     setSelectedPoId(null);
+    setInitiateDeposit(false);
     setCurrentView(view);
   };
 
@@ -120,6 +139,7 @@ function AppInner() {
       case 'register': return (
         <CashRegister 
           preSelectedCustomerId={selectedCustomerId}
+          initiateDeposit={initiateDeposit}
           onViewCustomers={() => setCurrentView('customers')} 
           onSelectCustomer={(id) => {
             setSelectedCustomerId(id);
@@ -197,8 +217,15 @@ function AppInner() {
             setSelectedInvoiceId(id);
             setCurrentView('invoice-details');
           }}
-          onCreateInvoice={() => setCurrentView('register')}
+          onCreateInvoice={() => {
+            setInitiateDeposit(false);
+            setCurrentView('register');
+          }}
           onCreateRepair={() => setCurrentView('repairs')}
+          onDeposit={() => {
+            setInitiateDeposit(true);
+            setCurrentView('register');
+          }}
         />
       );
       case 'repairs': return <RepairList preSelectedCustomerId={selectedCustomerId} />;
@@ -250,79 +277,103 @@ function AppInner() {
   };
 
   return (
-    <div className="flex h-screen bg-[#f4f7f9] font-sans text-slate-900 overflow-hidden">
+    <div className="flex flex-col h-screen bg-[var(--bg-app)] font-sans text-[var(--text-main)] overflow-hidden transition-colors duration-300">
       {showAdminPortal && isAdmin && <AdminPortal onClose={() => setShowAdminPortal(false)} />}
 
-      {/* Sidebar */}
-      <aside className="w-28 bg-[#2c3e50] text-white flex flex-col z-20">
-        <button 
-          onClick={() => setCurrentView('home')}
-          className={`h-16 flex items-center justify-center border-b border-white/10 transition-colors hover:bg-[#34495e] ${currentView === 'home' ? 'bg-[#34495e]' : ''}`}
-        >
-          <Home size={32} className="text-[#3498db]" />
-        </button>
-
-        <nav className="flex-1 py-2 flex flex-col items-center">
-          {menuItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => handleSidebarNavigate(item.id as View)}
-              className={`w-full flex flex-col items-center justify-center py-5 px-1 transition-all duration-200 border-l-4 ${
-                currentView === item.id 
-                  ? 'bg-[#34495e] border-[#3498db] text-white' 
-                  : 'border-transparent text-slate-400 hover:bg-[#34495e] hover:text-white'
-              }`}
+      {/* Header */}
+      <header className="h-16 bg-[var(--bg-header)] flex items-center justify-between z-30 transition-colors duration-300">
+        <div className="flex h-full items-center">
+          <div className="w-28 flex items-center justify-center h-full">
+            <button 
+              onClick={() => setCurrentView('home')}
+              className="transition-transform hover:scale-110 p-2"
             >
-              <item.icon size={24} />
-              <span className="text-[11px] mt-2 text-center font-bold leading-tight uppercase tracking-wide">{item.label}</span>
+              <Home size={24} className="text-[var(--text-main)]" />
             </button>
-          ))}
-        </nav>
-
-        {/* Logout at bottom */}
-        <button onClick={logout} className="h-12 flex items-center justify-center border-t border-white/10 hover:bg-red-500/20 transition-colors text-slate-400 hover:text-red-300 gap-1.5 text-xs">
-          <LogOut size={16} />
-        </button>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 shadow-sm">
-          <div className="flex items-center gap-2">
-            <Smartphone size={24} className="text-[#2980b9]" />
-            <h1 className="text-xl font-bold text-[#2980b9]">Phone Lab</h1>
           </div>
-
-          <div className="flex-1 max-w-xl px-8">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-              <input 
-                type="text" 
-                placeholder="Search here" 
-                className="w-full bg-[#f8f9fa] border border-slate-200 rounded py-1.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-1 focus:ring-[#3498db]"
-              />
-            </div>
+          
+          <div className="pl-6 flex flex-col items-start font-sans">
+            <h1 className="text-lg font-black text-[var(--text-main)] tracking-tighter leading-none">PHONE LAB</h1>
           </div>
+        </div>
 
-          <div className="flex items-center gap-3">
-            {isAdmin && (
-              <button onClick={() => setShowAdminPortal(true)}
-                className="flex items-center gap-1.5 bg-[#2c3e50] hover:bg-[#34495e] text-white px-3 py-1.5 rounded-lg text-xs font-medium transition">
-                <Shield size={14} />
-                Admin
-              </button>
-            )}
-            <div className="flex items-center gap-2 text-sm text-slate-600">
-              <div className="text-right">
-                <div className="font-medium text-xs text-slate-800 leading-tight">{currentUser.name}</div>
-                <div className="text-xs text-slate-400 leading-tight">{currentUser.branch_name}</div>
+        <div className="flex-1 max-w-xl px-12">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" size={16} />
+            <input 
+              type="text" 
+              placeholder="Search here" 
+              className="w-full bg-[var(--bg-card)] border border-[var(--border-base)] rounded-full py-1.5 pl-11 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all placeholder:text-[var(--text-muted)] text-[var(--text-main)]"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 px-6">
+          {/* Theme Toggle */}
+          <button 
+            onClick={() => setIsDarkMode(!isDarkMode)}
+            className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-[var(--text-main)] flex items-center justify-center"
+            title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          >
+            {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+          </button>
+
+          {isAdmin && (
+            <button 
+              onClick={() => setShowAdminPortal(true)}
+              className="h-8 overflow-hidden group bg-transparent text-[var(--text-main)] px-3 rounded-full text-[11px] uppercase tracking-widest transition-all cursor-pointer"
+            >
+              <div className="flex flex-col transition-transform duration-500 group-hover:-translate-y-8 ease-in-out">
+                <div className="h-8 flex items-center justify-center whitespace-nowrap">
+                  Admin
+                </div>
+                <div className="h-8 flex items-center justify-center whitespace-nowrap text-blue-600">
+                  Log In
+                </div>
               </div>
-              <ChevronDown size={14} />
+            </button>
+          )}
+          
+          <button 
+            onClick={logout}
+            className="h-8 overflow-hidden group bg-[var(--bg-card)] text-[var(--text-main)] px-5 rounded-full text-[11px] uppercase tracking-widest transition-all border border-[var(--border-base)] shadow-sm cursor-pointer"
+          >
+            <div className="flex flex-col transition-transform duration-500 group-hover:-translate-y-8 ease-in-out">
+              <div className="h-8 flex items-center justify-center whitespace-nowrap">
+                {currentUser.name}
+              </div>
+              <div className="h-8 flex items-center justify-center whitespace-nowrap text-red-500">
+                Log Out
+              </div>
             </div>
-          </div>
-        </header>
+          </button>
+        </div>
+      </header>
 
-        <div className="flex-1 overflow-auto">
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar */}
+        <aside className="w-28 bg-[var(--bg-sidebar)] text-white flex flex-col z-20 shadow-xl">
+          <nav className="flex-1 py-1 flex flex-col items-center">
+            {menuItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => handleSidebarNavigate(item.id as View)}
+                className={`w-full flex flex-col items-center justify-center py-5 px-1 transition-all duration-200 border-l-4 ${
+                  currentView === item.id 
+                    ? 'bg-white/10 border-blue-500 text-white' 
+                    : 'border-transparent text-slate-400 hover:bg-white/5 hover:text-white'
+                }`}
+              >
+                <item.icon size={24} />
+                <span className="text-[11px] mt-2 text-center font-bold leading-tight uppercase tracking-wide">{item.label}</span>
+              </button>
+            ))}
+          </nav>
+
+        </aside>
+
+        {/* Main Content Area */}
+        <main className="flex-1 overflow-auto bg-[var(--bg-app)] transition-colors duration-300">
           <ErrorBoundary>
             <AnimatePresence mode="wait">
               <motion.div
@@ -337,8 +388,8 @@ function AppInner() {
               </motion.div>
             </AnimatePresence>
           </ErrorBoundary>
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }

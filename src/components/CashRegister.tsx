@@ -12,8 +12,9 @@ import { SearchResults } from './cash-register/SearchResults';
 import { CartTable } from './cash-register/CartTable';
 import { ActivityLog } from './cash-register/ActivityLog';
 import { Sidebar } from './cash-register/Sidebar';
-import { CheckoutModal } from './cash-register/CheckoutModal';
+import { ReviewCheckoutModal } from './cash-register/ReviewCheckoutModal';
 import { ImeiSelectorModal } from './cash-register/ImeiSelectorModal';
+import { DepositAmountModal } from './cash-register/DepositAmountModal';
 import CustomerFormModal from './CustomerFormModal';
 import { CartItem, PaymentEntry, Activity } from './cash-register/types';
 import { useThermalSettings } from '../hooks/useThermalSettings';
@@ -22,9 +23,10 @@ interface CashRegisterProps {
   onViewCustomers?: () => void;
   onSelectCustomer?: (id: number) => void;
   preSelectedCustomerId?: number | null;
+  initiateDeposit?: boolean;
 }
 
-export default function CashRegister({ onViewCustomers, onSelectCustomer, preSelectedCustomerId }: CashRegisterProps) {
+export default function CashRegister({ onViewCustomers, onSelectCustomer, preSelectedCustomerId, initiateDeposit }: CashRegisterProps) {
   // State
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Product[]>([]);
@@ -36,7 +38,7 @@ export default function CashRegister({ onViewCustomers, onSelectCustomer, preSel
   const [paymentAmount, setPaymentAmount] = useState('');
   const [availableMethods, setAvailableMethods] = useState<string[]>(['Cash', 'Card']);
   const [addedPayments, setAddedPayments] = useState<PaymentEntry[]>([]);
-  const [showCheckoutModal, setShowCheckoutModal] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
   const [lastInvoiceData, setLastInvoiceData] = useState<any>(null);
   const [printType, setPrintType] = useState<'Thermal' | 'A4'>('Thermal');
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -53,7 +55,24 @@ export default function CashRegister({ onViewCustomers, onSelectCustomer, preSel
   const [isLoadingImeis, setIsLoadingImeis] = useState(false);
   const { settings, company } = useThermalSettings();
 
+  // Deposit State
+  const [showDepositModal, setShowDepositModal] = useState(false);
+  const [depositProductInfo, setDepositProductInfo] = useState<any>(null);
+
   // Effects
+  useEffect(() => {
+    fetch('/api/products/special/get-deposit-product')
+      .then(res => res.json())
+      .then(data => setDepositProductInfo(data))
+      .catch(err => console.error('Error fetching deposit product:', err));
+  }, []);
+
+  useEffect(() => {
+    if (initiateDeposit && preSelectedCustomerId && !showDepositModal) {
+      setShowDepositModal(true);
+    }
+  }, [initiateDeposit, preSelectedCustomerId]);
+
   useEffect(() => {
     // Fetch payment methods
     fetch('/api/payment-methods')
@@ -249,6 +268,38 @@ export default function CashRegister({ onViewCustomers, onSelectCustomer, preSel
     setAddedPayments(prev => prev.filter((_, i) => i !== index));
   };
 
+  const handleAddDepositToCart = (amount: number) => {
+    if (!depositProductInfo || !selectedCustomer) return;
+    
+    const existingIndex = cart.findIndex(c => c.is_deposit);
+    if (existingIndex > -1) {
+      const newCart = [...cart];
+      newCart[existingIndex] = {
+        ...newCart[existingIndex],
+        price: newCart[existingIndex].price + amount,
+        selling_price: (newCart[existingIndex].selling_price || 0) + amount,
+        customPrice: (newCart[existingIndex].customPrice || 0) + amount,
+        total: newCart[existingIndex].total + amount
+      };
+      setCart(newCart);
+    } else {
+      setCart(prev => [{
+        id: depositProductInfo.sku_id,
+        name: depositProductInfo.product_name,
+        category: 'Service',
+        price: amount,
+        selling_price: amount,
+        customPrice: amount,
+        quantity: 1,
+        total: amount,
+        is_deposit: true
+      }, ...prev]);
+    }
+    
+    setShowDepositModal(false);
+    addActivity('Item Added', `Wallet Deposit for €${amount.toFixed(2)}`, 'item');
+  };
+
   const handleOpenImeiSelector = async (product: Product) => {
     setImeiSelectorProduct(product);
     setShowImeiSelector(true);
@@ -285,9 +336,12 @@ export default function CashRegister({ onViewCustomers, onSelectCustomer, preSel
     }
   };
 
-  const handleCheckout = async () => {
+  const handleCheckout = () => {
     if (cart.length === 0) return;
+    setShowReviewModal(true);
+  };
 
+  const handleFinalizeTransaction = async (printPreference: 'Thermal' | 'A4' | null) => {
     const invoiceData = {
       customer_id: selectedCustomer?.id || null,
       subtotal,
@@ -300,7 +354,8 @@ export default function CashRegister({ onViewCustomers, onSelectCustomer, preSel
         imei: item.imei,
         quantity: item.quantity,
         price: item.customPrice ?? item.selling_price,
-        total: (item.customPrice ?? item.selling_price) * item.quantity
+        total: (item.customPrice ?? item.selling_price) * item.quantity,
+        is_deposit: item.is_deposit || false
       })),
       payments: addedPayments,
       activities: activities
@@ -320,11 +375,22 @@ export default function CashRegister({ onViewCustomers, onSelectCustomer, preSel
         const fullInvoice = await fullInvoiceRes.json();
         
         setLastInvoiceData(fullInvoice);
-        setShowCheckoutModal(true);
+        setShowReviewModal(false);
         addActivity('Checkout Complete', `Invoice #${fullInvoice.invoice_number} generated`, 'sale');
+
+        if (printPreference) {
+          setPrintType(printPreference);
+          setTimeout(() => {
+            window.print();
+            resetRegister();
+          }, 300);
+        } else {
+          resetRegister();
+        }
       }
     } catch (error) {
       console.error('Checkout error:', error);
+      alert('Checkout failed: ' + error);
     }
   };
 
@@ -333,7 +399,7 @@ export default function CashRegister({ onViewCustomers, onSelectCustomer, preSel
     setSelectedCustomer(null);
     setAddedPayments([]);
     setPaymentAmount('');
-    setShowCheckoutModal(false);
+    setShowReviewModal(false);
     setLastInvoiceData(null);
     setSearchQuery('');
     setCustomerSearch('');
@@ -363,49 +429,50 @@ export default function CashRegister({ onViewCustomers, onSelectCustomer, preSel
   }, [remainingAmount]);
 
   return (
-    <div className="h-full flex flex-col bg-slate-50 overflow-hidden">
+    <div className="h-full flex flex-col bg-[var(--bg-app)] overflow-hidden transition-colors duration-300">
       {/* Header Area */}
-      <div className="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center shrink-0">
+      <div className="bg-[var(--bg-card)] px-6 py-4 flex justify-between items-center shrink-0">
         <div className="flex items-center gap-3">
-          <div className="bg-blue-600 p-2 rounded-md text-white shadow-lg shadow-blue-100">
-            <ShoppingBag size={24} />
-          </div>
           <div>
-            <h1 className="text-xl font-black text-slate-800 tracking-tight uppercase">Register</h1>
+            <h1 className="text-xl font-black text-[var(--text-main)] tracking-tight uppercase">Register</h1>
           </div>
         </div>
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex overflow-hidden p-6 gap-6">
+      <div className="flex-1 flex overflow-hidden px-6 py-0 gap-0">
         {/* Left Side: Product Search & Cart */}
-        <div className="flex-1 flex flex-col gap-6 min-w-0">
-          {/* Search Bar */}
-          <div className="relative shrink-0">
+        <div className="flex-1 flex flex-col pt-6 pb-6 pr-6 border-r border-[var(--border-base)] min-w-0">
+          {/* Search Bar & Results (Floating setup) */}
+          <div className="shrink-0 mb-3 relative z-50">
             <ProductSearchBar 
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
               onClear={() => setSearchQuery('')}
             />
             
-            {/* Search Results Dropdown */}
+            {/* Search Results (Floating) */}
             <SearchResults 
               results={searchResults}
+              searchQuery={searchQuery}
               onAddProduct={addToCart}
             />
           </div>
 
-          {/* Cart Table */}
-          <CartTable 
-            cart={cart}
-            onUpdateQuantity={updateQuantity}
-            onUpdatePrice={updatePrice}
-            onRemove={removeFromCart}
-            onOpenImeiSelector={handleOpenImeiSelector}
-          />
+          {/* Scrollable Content Area */}
+          <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-4">
+            {/* Cart Table */}
+            <CartTable 
+              cart={cart}
+              onUpdateQuantity={updateQuantity}
+              onUpdatePrice={updatePrice}
+              onRemove={removeFromCart}
+              onOpenImeiSelector={handleOpenImeiSelector}
+            />
 
-          {/* Activity Log */}
-          <ActivityLog activities={activities} />
+            {/* Activity Log */}
+            <ActivityLog activities={activities} />
+          </div>
         </div>
 
         {/* Right Side: Sidebar (Customer, Totals, Payment) */}
@@ -422,6 +489,7 @@ export default function CashRegister({ onViewCustomers, onSelectCustomer, preSel
           }}
           onClearCustomer={() => setSelectedCustomer(null)}
           onOpenNewCustomerModal={() => setShowNewCustomerModal(true)}
+          onOpenDepositModal={() => setShowDepositModal(true)}
           
           subtotal={subtotal}
           tax={0}
@@ -448,17 +516,17 @@ export default function CashRegister({ onViewCustomers, onSelectCustomer, preSel
       {/* Modals */}
       {showDiscardConfirm && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-md shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-300">
+          <div className="bg-[var(--bg-card)] rounded-md shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-300 border border-[var(--border-base)]">
             <div className="p-6 text-center">
-              <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 bg-red-50 dark:bg-red-950/20 rounded-full flex items-center justify-center mx-auto mb-4">
                 <XCircle size={32} className="text-red-500" />
               </div>
-              <h3 className="text-xl font-black text-slate-800 mb-2 uppercase tracking-tight">Discard Sale?</h3>
-              <p className="text-slate-500 text-sm mb-6">Are you sure you want to clear the current cart and reset the transaction? This action cannot be undone.</p>
+              <h3 className="text-xl font-black text-[var(--text-main)] mb-2 uppercase tracking-tight">Discard Sale?</h3>
+              <p className="text-[var(--text-muted)] text-sm mb-6">Are you sure you want to clear the current cart and reset the transaction? This action cannot be undone.</p>
               <div className="flex gap-3">
                 <button 
                   onClick={() => setShowDiscardConfirm(false)}
-                  className="flex-1 py-3 rounded-md font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 transition-all"
+                  className="flex-1 py-3 rounded-md font-bold text-[var(--text-muted)] bg-[var(--bg-app)] hover:bg-[var(--bg-hover)] transition-all border border-[var(--border-base)]"
                 >
                   Cancel
                 </button>
@@ -478,11 +546,20 @@ export default function CashRegister({ onViewCustomers, onSelectCustomer, preSel
         </div>
       )}
 
-      {showCheckoutModal && (
-        <CheckoutModal 
-          invoice={lastInvoiceData}
-          onClose={resetRegister}
-          onPrint={handlePrint}
+      {showReviewModal && (
+        <ReviewCheckoutModal 
+          grandTotal={total}
+          payments={addedPayments}
+          onCancel={() => setShowReviewModal(false)}
+          onConfirm={handleFinalizeTransaction}
+        />
+      )}
+
+      {showDepositModal && (
+        <DepositAmountModal 
+          customer={selectedCustomer}
+          onClose={() => setShowDepositModal(false)}
+          onAddDeposit={handleAddDepositToCart}
         />
       )}
 

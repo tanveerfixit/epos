@@ -26,6 +26,53 @@ router.get('/', async (req: any, res) => {
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
+// GET /api/products/special/get-deposit-product
+router.get('/special/get-deposit-product', async (req: any, res) => {
+  const businessId = req.user.business_id;
+  const conn = await pool.getConnection();
+  try {
+    const depositSkuCode = 'DEPOSIT-WALLET';
+    const [existingSkus] = await conn.execute(`
+      SELECT s.id as sku_id, p.id as product_id, p.name as product_name, s.sku_code, s.selling_price
+      FROM product_skus s
+      JOIN products p ON s.product_id = p.id
+      WHERE s.sku_code = ? AND p.business_id = ?
+    `, [depositSkuCode, businessId]);
+
+    let skuInfo = (existingSkus as any[])[0];
+
+    if (!skuInfo) {
+      await conn.beginTransaction();
+      const [pr] = await conn.execute(
+        'INSERT INTO products (business_id,name,product_type,allow_overselling) VALUES (?,?,?,?)',
+        [businessId, 'Wallet Deposit', 'service', 1]
+      );
+      const productId = (pr as any).insertId;
+      const [sr] = await conn.execute(
+        'INSERT INTO product_skus (product_id,sku_code,barcode,cost_price,selling_price) VALUES (?,?,?,?,?)',
+        [productId, depositSkuCode, depositSkuCode, 0, 0]
+      );
+      const skuId = (sr as any).insertId;
+      await conn.commit();
+
+      skuInfo = {
+        sku_id: skuId,
+        product_id: productId,
+        product_name: 'Wallet Deposit',
+        sku_code: depositSkuCode,
+        selling_price: 0
+      };
+    }
+
+    res.json(skuInfo);
+  } catch (e: any) {
+    if (conn) await conn.rollback().catch(() => {});
+    res.status(500).json({ error: e.message });
+  } finally {
+    if (conn) conn.release();
+  }
+});
+
 // GET /api/products/:id
 router.get('/:id', async (req: any, res) => {
   try {

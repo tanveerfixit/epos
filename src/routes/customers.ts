@@ -28,19 +28,33 @@ router.get('/:id', async (req: any, res) => {
 });
 
 router.post('/', async (req: any, res) => {
-  const { name, phone, email, first_name, last_name, secondary_phone, fax, offers_email,
-    company, customer_type, address_line1, address_line2, city, state, zip_code, country, website, alert_message } = req.body;
   try {
+    const b = req.body;
     // Derive a combined name if not explicitly provided
-    const fullName = name || `${first_name || ''} ${last_name || ''}`.trim() || 'Unknown';
+    const fullName = b.name || `${b.first_name || ''} ${b.last_name || ''}`.trim() || 'Unknown';
+    const businessId = req.user?.business_id;
+    const branchId = req.user?.branch_id ?? null;
+
+    if (!businessId) return res.status(400).json({ error: 'No business context found. Please log in again.' });
+
+    // Helper: convert undefined → null so mysql2 doesn't throw
+    const n = (v: any) => (v === undefined ? null : v === '' ? null : v);
+
     const r = await execute(`
       INSERT INTO customers (business_id,branch_id,name,phone,email,first_name,last_name,secondary_phone,fax,offers_email,
         company,customer_type,address_line1,address_line2,city,state,zip_code,country,website,alert_message)
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      [req.user.business_id, req.user.branch_id, fullName, phone || null, email || null, first_name || null, last_name || null, secondary_phone || null, fax || null, offers_email ? 1 : 0,
-       company || null, customer_type || null, address_line1 || null, address_line2 || null, city || null, state || null, zip_code || null, country || null, website || null, alert_message || null]);
+      [businessId, branchId, fullName,
+       n(b.phone), n(b.email), n(b.first_name), n(b.last_name),
+       n(b.secondary_phone), n(b.fax), b.offers_email ? 1 : 0,
+       n(b.company), n(b.customer_type), n(b.address_line1), n(b.address_line2),
+       n(b.city), n(b.state), n(b.zip_code), n(b.country), n(b.website), n(b.alert_message)
+      ]);
     res.json({ id: r.insertId });
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
+  } catch (e: any) {
+    console.error('[POST /api/customers] Error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 router.put('/:id', async (req: any, res) => {
@@ -158,13 +172,36 @@ router.post('/:id/payments', async (req: any, res) => {
     const [cRows] = await conn.execute(checkSql, checkParams);
     if ((cRows as any[]).length === 0) throw new Error('Customer not found or access denied');
 
-    await conn.execute("INSERT INTO payments (customer_id,type,method,amount) VALUES (?,?,?,?)",
-      [req.params.id, 'deposit', method || 'Cash', numAmount]);
+    // Generate DE-### invoice for wallet deposit
+    const [lastDE] = await conn.execute(
+      "SELECT invoice_number FROM invoices WHERE invoice_number LIKE 'DE-%' AND business_id=? ORDER BY id DESC LIMIT 1",
+      [req.user.business_id]
+    );
+    let nextDENum = 1;
+    if ((lastDE as any[]).length > 0) {
+      const lastNum = parseInt((lastDE as any[])[0].invoice_number.split('-')[1]);
+      if (!isNaN(lastNum)) nextDENum = lastNum + 1;
+    }
+    const invoiceNumber = `DE-${String(nextDENum).padStart(3, '0')}`;
+
+    const [invR] = await conn.execute(
+      `INSERT INTO invoices (business_id, branch_id, user_id, customer_id, invoice_number, type, 
+        subtotal, tax_total, discount_total, grand_total, paid_amount, due_amount, status)
+       VALUES (?, ?, ?, ?, ?, 'wallet', ?, 0, 0, ?, ?, 0, 'paid')`,
+      [req.user.business_id, req.user.branch_id, req.userId, req.params.id, invoiceNumber, numAmount, numAmount, numAmount]
+    );
+    const invoiceId = (invR as any).insertId;
+
+    await conn.execute("INSERT INTO payments (customer_id, invoice_id, type, method, amount) VALUES (?,?,?,?,?)",
+      [req.params.id, invoiceId, 'wallet_deposit', method || 'Cash', numAmount]);
+    
     await conn.execute("UPDATE customers SET wallet_balance=COALESCE(wallet_balance,0)+? WHERE id=?", [numAmount, req.params.id]);
+    
     await conn.execute("INSERT INTO customer_activity (customer_id,user_id,activity,details) VALUES (?,?,?,?)",
-      [req.params.id, req.userId, 'Deposit Received', `Deposit of €${numAmount.toFixed(2)} received via ${method}. ${note || ''}`]);
+      [req.params.id, req.userId, 'Deposit Received', `Wallet deposit of €${numAmount.toFixed(2)} received via ${method}. Invoice: ${invoiceNumber}. ${note || ''}`]);
+    
     await conn.commit();
-    res.json({ success: true });
+    res.json({ success: true, invoice_number: invoiceNumber });
   } catch (e: any) { await conn.rollback(); res.status(500).json({ error: e.message }); }
   finally { conn.release(); }
 });

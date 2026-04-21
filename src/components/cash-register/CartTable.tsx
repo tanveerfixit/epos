@@ -19,32 +19,24 @@ export const CartTable: React.FC<CartTableProps> = ({
   onOpenImeiSelector
 }) => {
   return (
-    <div className="bg-white rounded-md shadow-sm border border-slate-200 overflow-hidden flex-1 flex flex-col min-h-0">
-      <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <div className="bg-blue-600 p-1.5 rounded-lg text-white">
-            <ShoppingCart size={18} />
-          </div>
-          <h2 className="font-bold text-slate-800">Current Cart</h2>
-        </div>
-        <span className="bg-blue-100 text-blue-700 px-2.5 py-1 rounded-full text-xs font-bold">
+    <div className="bg-[var(--bg-card)] border border-[var(--border-base)] overflow-hidden flex-1 flex flex-col min-h-0">
+      <div className="px-4 py-2 border-b border-[var(--border-base)] bg-[var(--bg-header)] flex justify-between items-center">
+        <h2 className="text-[10px] font-black text-black dark:text-black uppercase tracking-widest">Current Cart</h2>
+        <span className="text-[10px] font-bold text-black dark:text-black uppercase tracking-widest">
           {cart.reduce((sum, item) => sum + item.quantity, 0)} Items
         </span>
       </div>
       
       <div className="overflow-y-auto flex-1 custom-scrollbar">
         {cart.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center p-12 text-slate-400">
-            <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4 border-2 border-dashed border-slate-200">
-              <ShoppingCart size={32} className="opacity-20" />
-            </div>
+          <div className="h-full flex flex-col items-center justify-center p-12 text-[var(--text-muted-more)]">
             <p className="font-medium">Your cart is empty</p>
             <p className="text-sm opacity-60">Search for products to add them here</p>
           </div>
         ) : (
           <table className="w-full border-collapse">
-            <thead className="sticky top-0 bg-white shadow-sm z-10">
-              <tr className="text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">
+            <thead className="sticky top-0 bg-[var(--bg-card)] z-10">
+              <tr className="text-left text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest border-b border-[var(--border-base)]">
                 <th className="py-3 pl-4">Product Details</th>
                 <th className="py-3 text-right">Price</th>
                 <th className="py-3 text-center">Qty</th>
@@ -52,7 +44,7 @@ export const CartTable: React.FC<CartTableProps> = ({
                 <th className="py-3 pr-4 text-right"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50">
+            <tbody className="divide-y divide-[var(--border-base)]">
               {cart.map((item, idx) => (
                 <CartRow 
                   key={`${item.id}-${item.device_id || idx}`}

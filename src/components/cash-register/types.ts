@@ -5,6 +5,7 @@ export interface CartItem extends Product {
   device_id?: number;
   imei?: string;
   customPrice?: number;
+  is_deposit?: boolean;
 }
 
 export interface PaymentEntry {
