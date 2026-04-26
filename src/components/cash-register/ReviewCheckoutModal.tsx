@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { X, Printer, FileText, Check } from 'lucide-react';
+import { X, Printer, FileText, Check, Loader2 } from 'lucide-react';
 import { PaymentEntry } from './types';
 
 interface ReviewCheckoutModalProps {
   grandTotal: number;
   payments: PaymentEntry[];
+  isFinalizing?: boolean;
   onCancel: () => void;
   onConfirm: (printPreference: 'Thermal' | 'A4' | null) => void;
 }
@@ -12,6 +13,7 @@ interface ReviewCheckoutModalProps {
 export const ReviewCheckoutModal: React.FC<ReviewCheckoutModalProps> = ({
   grandTotal,
   payments,
+  isFinalizing = false,
   onCancel,
   onConfirm
 }) => {
@@ -21,15 +23,16 @@ export const ReviewCheckoutModal: React.FC<ReviewCheckoutModalProps> = ({
   const changeDue = Math.max(0, totalPaid - grandTotal);
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-300">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-[100] p-4 animate-in fade-in duration-300">
+      <div className="bg-[var(--bg-card)] w-full max-w-md shadow-[0_20px_50px_rgba(0,0,0,0.3)] animate-in zoom-in-95 duration-300 border border-[var(--border-base)] overflow-hidden">
         
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50">
-          <h2 className="text-lg font-black text-slate-800 uppercase tracking-tight">Review Sale</h2>
+        <div className="flex items-center justify-between px-8 py-5 border-b border-[var(--border-base)] bg-[var(--bg-app)]">
+          <h2 className="text-xl font-black text-[var(--text-main)] uppercase tracking-tight">Review Sale</h2>
           <button 
             onClick={onCancel}
-            className="text-slate-400 hover:text-slate-600 transition-colors"
+            disabled={isFinalizing}
+            className="text-[var(--text-muted-more)] hover:text-[var(--text-main)] transition-colors disabled:opacity-30"
           >
             <X size={24} />
           </button>
@@ -39,39 +42,42 @@ export const ReviewCheckoutModal: React.FC<ReviewCheckoutModalProps> = ({
         <div className="p-8 space-y-8">
           
           {/* Totals Box */}
-          <div className="bg-slate-50 border border-slate-200 p-6 flex flex-col items-center justify-center space-y-2">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Total Amount</span>
-            <span className="text-5xl font-black text-slate-900 tracking-tighter">€{grandTotal.toFixed(2)}</span>
+          <div className="bg-[var(--bg-app)] border-2 border-[var(--brand-primary)]/20 p-8 flex flex-col items-center justify-center space-y-2 rounded-sm shadow-inner">
+            <span className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-[0.2em]">Total Amount</span>
+            <span className="text-6xl font-black text-[var(--text-main)] tracking-tighter">€{grandTotal.toFixed(2)}</span>
           </div>
 
           {/* Payment Summary */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-2">Payments</h3>
-            {payments.map((p, idx) => (
-              <div key={idx} className="flex justify-between items-center text-sm font-medium text-slate-700">
-                <span>{p.method}</span>
-                <span>€{p.amount.toFixed(2)}</span>
-              </div>
-            ))}
+          <div className="space-y-4">
+            <h3 className="text-[10px] font-black text-[var(--text-muted-more)] uppercase tracking-[0.15em] border-b border-[var(--border-base)] pb-2">Payment Details</h3>
+            <div className="space-y-2">
+              {payments.map((p, idx) => (
+                <div key={idx} className="flex justify-between items-center text-sm font-bold text-[var(--text-main)]">
+                  <span className="opacity-70">{p.method}</span>
+                  <span className="font-mono">€{p.amount.toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
             
-            {changeDue > 0.01 && (
-              <div className="flex justify-between items-center text-lg font-bold text-blue-600 pt-3 border-t border-slate-100 mt-3 relative">
-                <span className="uppercase tracking-tight">Change Due</span>
-                <span>€{changeDue.toFixed(2)}</span>
+            {changeDue > 0.005 && (
+              <div className="flex justify-between items-center text-2xl font-black text-red-600 pt-4 border-t-2 border-dashed border-[var(--border-base)] mt-4 animate-pulse">
+                <span className="uppercase tracking-tight text-sm">Change Due</span>
+                <span className="font-mono">€{changeDue.toFixed(2)}</span>
               </div>
             )}
           </div>
 
-          {/* Print Preferences Toggle */}
-          <div className="space-y-3 pt-6 border-t border-slate-100">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Receipt Options</h3>
+          {/* Receipt Options */}
+          <div className="space-y-4 pt-6 border-t border-[var(--border-base)]">
+            <h3 className="text-[10px] font-black text-[var(--text-muted-more)] uppercase tracking-[0.15em]">Receipt Style</h3>
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => setPrintPreference(printPreference === 'Thermal' ? null : 'Thermal')}
-                className={`py-3 flex items-center justify-center gap-2 border font-bold text-sm uppercase tracking-tight transition-all ${
+                disabled={isFinalizing}
+                className={`py-4 flex items-center justify-center gap-3 border-2 font-black text-[10px] uppercase tracking-widest transition-all ${
                   printPreference === 'Thermal' 
-                    ? 'border-blue-600 bg-blue-50 text-blue-700' 
-                    : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
+                    ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)] text-white shadow-lg' 
+                    : 'border-[var(--border-base)] bg-[var(--bg-card)] text-[var(--text-muted)] hover:border-[var(--text-muted-more)]'
                 }`}
               >
                 <Printer size={16} />
@@ -79,10 +85,11 @@ export const ReviewCheckoutModal: React.FC<ReviewCheckoutModalProps> = ({
               </button>
               <button
                 onClick={() => setPrintPreference(printPreference === 'A4' ? null : 'A4')}
-                className={`py-3 flex items-center justify-center gap-2 border font-bold text-sm uppercase tracking-tight transition-all ${
+                disabled={isFinalizing}
+                className={`py-4 flex items-center justify-center gap-3 border-2 font-black text-[10px] uppercase tracking-widest transition-all ${
                   printPreference === 'A4' 
-                    ? 'border-blue-600 bg-blue-50 text-blue-700' 
-                    : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
+                    ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)] text-white shadow-lg' 
+                    : 'border-[var(--border-base)] bg-[var(--bg-card)] text-[var(--text-muted)] hover:border-[var(--text-muted-more)]'
                 }`}
               >
                 <FileText size={16} />
@@ -93,19 +100,34 @@ export const ReviewCheckoutModal: React.FC<ReviewCheckoutModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="flex mt-8">
+        <div className="flex">
           <button 
             onClick={onCancel}
-            className="flex-1 py-5 font-black text-slate-600 bg-slate-100 hover:bg-slate-200 uppercase tracking-widest text-sm transition-colors"
+            disabled={isFinalizing}
+            className="flex-1 py-6 font-black text-[var(--text-muted)] bg-[var(--bg-app)] hover:bg-[var(--bg-hover)] uppercase tracking-widest text-[10px] transition-colors border-t border-r border-[var(--border-base)] disabled:opacity-50"
           >
             Cancel
           </button>
           <button 
             onClick={() => onConfirm(printPreference)}
-            className="flex-[2] py-5 font-black text-white bg-emerald-600 hover:bg-emerald-700 uppercase tracking-widest text-sm flex items-center justify-center gap-2 transition-colors"
+            disabled={isFinalizing}
+            className={`flex-[2] py-6 font-black text-white uppercase tracking-[0.2em] text-[11px] flex items-center justify-center gap-3 transition-all active:scale-[0.98] ${
+              isFinalizing 
+                ? 'bg-slate-400 cursor-not-allowed' 
+                : 'bg-[#22c55e] hover:bg-[#16a34a] shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]'
+            }`}
           >
-            <Check size={18} />
-            Finalize Transaction
+            {isFinalizing ? (
+              <>
+                <Loader2 size={18} className="animate-spin" />
+                Processing...
+              </>
+            ) : (
+              <>
+                <Check size={18} strokeWidth={3} />
+                Finalize Transaction
+              </>
+            )}
           </button>
         </div>
 

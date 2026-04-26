@@ -6,6 +6,9 @@ export interface CartItem extends Product {
   imei?: string;
   customPrice?: number;
   is_deposit?: boolean;
+  discount?: number;
+  discountType?: 'percentage' | 'fixed';
+  notes?: string;
 }
 
 export interface PaymentEntry {

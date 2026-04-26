@@ -19,7 +19,7 @@ export const ProductSearchBar: React.FC<ProductSearchBarProps> = ({
       </div>
       <input
         type="text"
-        className="block w-full pl-12 pr-28 py-3.5 border border-[var(--border-base)] rounded-full bg-[var(--bg-card)] transition-all text-lg hover:shadow-md focus:shadow-md focus:outline-none placeholder:text-[var(--text-muted)] text-[var(--text-main)]"
+        className="block w-full pl-12 pr-28 py-3.5 border border-[var(--border-base)] rounded-none bg-[var(--bg-card)] transition-all text-lg hover:shadow-md focus:shadow-md focus:outline-none placeholder:text-[var(--text-muted)] text-[var(--text-main)]"
         placeholder="Search products by name, SKU or scan barcode..."
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}

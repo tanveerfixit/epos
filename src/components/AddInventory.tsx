@@ -27,24 +27,37 @@ export default function AddInventory({
   // Quick Add Supplier State
   const [showNewSupplierModal, setShowNewSupplierModal] = useState(false);
   const [newSupplierData, setNewSupplierData] = useState({ name: '', phone: '', email: '' });
+  const [supplierStatus, setSupplierStatus] = useState<{ type: 'success' | 'error', msg: string } | null>(null);
 
   const handleQuickAddSupplier = async () => {
     if (!newSupplierData.name.trim()) return;
+    setSupplierStatus(null);
     try {
       const res = await fetch('/api/suppliers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newSupplierData)
+        body: JSON.stringify({
+          ...newSupplierData,
+          contact_person: newSupplierData.name // Default to name
+        })
       });
       if (res.ok) {
         const newSup = await res.json();
-        setSuppliers([...suppliers, newSup]);
+        setSuppliers(prev => [...prev, newSup]);
         setSupplierId(newSup.id.toString());
-        setShowNewSupplierModal(false);
         setNewSupplierData({ name: '', phone: '', email: '' });
+        setSupplierStatus({ type: 'success', msg: 'Supplier added successfully!' });
+        setTimeout(() => {
+          setShowNewSupplierModal(false);
+          setSupplierStatus(null);
+        }, 1500);
+      } else {
+        const err = await res.json();
+        setSupplierStatus({ type: 'error', msg: err.error || 'Failed to add supplier' });
       }
     } catch (error) {
       console.error('Error adding supplier:', error);
+      setSupplierStatus({ type: 'error', msg: 'Connection error' });
     }
   };
 
@@ -349,6 +362,13 @@ export default function AddInventory({
               <h3 className="font-bold text-slate-800">Add New Supplier</h3>
             </div>
             <div className="p-6 space-y-4">
+              {supplierStatus && (
+                <div className={`p-3 rounded text-sm font-bold ${
+                  supplierStatus.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
+                }`}>
+                  {supplierStatus.msg}
+                </div>
+              )}
               <div className="space-y-1">
                 <label className="text-sm font-medium text-slate-700">Supplier Name *</label>
                 <input

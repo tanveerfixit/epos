@@ -4,6 +4,8 @@ import {
   List, 
   Save, 
   ChevronDown, 
+  ChevronLeft,
+  ChevronRight,
   FileText, 
   Euro,
   Calculator,
@@ -11,7 +13,8 @@ import {
   CheckCircle2,
   ArrowRightLeft,
   X,
-  ExternalLink
+  ExternalLink,
+  Calendar
 } from 'lucide-react';
 import { Payment, ClosingReport, ClosingReportPayment } from '../types';
 
@@ -47,32 +50,32 @@ const CashCounter: React.FC<CashCounterProps> = ({ onClose, onConfirm }) => {
   const total = Object.entries(counts).reduce((sum, [val, count]) => sum + (Number(val) * count), 0);
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
-        <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
-          <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-            <Calculator size={20} className="text-blue-500" />
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-[var(--bg-card)] rounded shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh] border border-[var(--border-base)]">
+        <div className="p-4 border-b border-[var(--border-base)] flex justify-between items-center bg-[var(--bg-accent-subtle)]">
+          <h3 className="text-sm font-bold text-[var(--text-main)] uppercase tracking-wider flex items-center gap-2">
+            <Calculator size={18} className="text-[var(--brand-primary)]" />
             Cash Drawer Counter
           </h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
-            <X size={24} />
+          <button onClick={onClose} className="text-[var(--text-muted-more)] hover:text-[var(--text-main)] transition-colors">
+            <X size={20} />
           </button>
         </div>
         
-        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+        <div className="flex-1 overflow-y-auto p-4 space-y-1 custom-scrollbar">
           {denominations.map((d) => (
-            <div key={d.value} className="flex items-center justify-between p-2 hover:bg-slate-50 rounded transition-colors border border-transparent hover:border-slate-100">
-              <span className="text-sm font-bold text-slate-700 w-16">{d.label}</span>
+            <div key={d.value} className="flex items-center justify-between p-2 hover:bg-[var(--bg-hover)] rounded transition-colors border border-transparent">
+              <span className="text-xs font-bold text-[var(--text-muted)] w-16">{d.label}</span>
               <div className="flex items-center gap-3">
-                <span className="text-xs text-slate-400">x</span>
+                <span className="text-[10px] text-[var(--text-muted-more)]">x</span>
                 <input 
                   type="number" 
                   min="0"
                   value={counts[d.value] || ''}
                   onChange={(e) => setCounts(prev => ({ ...prev, [d.value]: parseInt(e.target.value) || 0 }))}
-                  className="w-20 px-2 py-1 border border-slate-300 rounded text-right text-sm focus:ring-1 focus:ring-blue-500 outline-none"
+                  className="w-20 px-2 py-1 bg-[var(--bg-app)] border border-[var(--border-base)] rounded text-right text-xs focus:ring-1 focus:ring-[var(--brand-primary)] outline-none text-[var(--text-main)]"
                 />
-                <span className="text-sm font-mono font-bold text-slate-600 w-24 text-right">
+                <span className="text-xs font-mono font-bold text-[var(--text-main)] w-24 text-right">
                   €{(counts[d.value] * d.value).toFixed(2)}
                 </span>
               </div>
@@ -80,14 +83,14 @@ const CashCounter: React.FC<CashCounterProps> = ({ onClose, onConfirm }) => {
           ))}
         </div>
 
-        <div className="p-4 bg-slate-900 text-white flex justify-between items-center">
+        <div className="p-4 bg-[var(--bg-sidebar)] text-white flex justify-between items-center">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Total Counted</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest opacity-60">Total Counted</p>
             <p className="text-2xl font-black">€{total.toFixed(2)}</p>
           </div>
           <button 
             onClick={() => onConfirm(total)}
-            className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded font-bold transition-all shadow-lg shadow-blue-900/20"
+            className="px-6 py-2 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white rounded font-bold transition-all shadow-lg shadow-black/20"
           >
             Apply Total
           </button>
@@ -99,7 +102,21 @@ const CashCounter: React.FC<CashCounterProps> = ({ onClose, onConfirm }) => {
 
 export default function EndOfDay() {
   const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0]);
+  
+  // Date Navigation Handlers
+  const handlePrevDay = () => {
+    const d = new Date(reportDate);
+    d.setDate(d.getDate() - 1);
+    setReportDate(d.toISOString().split('T')[0]);
+  };
+
+  const handleNextDay = () => {
+    const d = new Date(reportDate);
+    d.setDate(d.getDate() + 1);
+    setReportDate(d.toISOString().split('T')[0]);
+  };
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
@@ -125,7 +142,11 @@ export default function EndOfDay() {
   }, [reportDate]);
 
   const fetchEodData = async () => {
-    setLoading(true);
+    // Only show full loading if it's the very first time
+    const isInitial = invoicePayments.length === 0 && otherMovements.length === 0;
+    if (isInitial) setLoading(true);
+    setIsRefreshing(true);
+    
     try {
       const response = await fetch(`/api/reports/eod-data?date=${reportDate}`);
       const data = await response.json();
@@ -135,55 +156,84 @@ export default function EndOfDay() {
       console.error('Error fetching EOD data:', error);
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
   const updatePaymentMethod = async (paymentId: number, newMethod: string) => {
+    // Optimistic Update
+    const originalPayments = [...invoicePayments];
+    setInvoicePayments(prev => prev.map(p => 
+      p.id === paymentId ? { ...p, method: newMethod } : p
+    ));
+
     try {
-      const res = await fetch(`/api/payments/${paymentId}`, {
+      const res = await fetch(`/api/invoices/payments/${paymentId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ method: newMethod })
       });
-      if (res.ok) {
-        fetchEodData();
+      if (!res.ok) {
+        throw new Error('Failed to update');
       }
+      // Optional: fetch fresh data to be sure, but optimistic is enough for immediate feedback
+      // fetchEodData();
     } catch (error) {
       console.error('Error updating payment method:', error);
+      setInvoicePayments(originalPayments); // Rollback on error
     }
   };
 
-  // Calculation Logic
+  const allPayments = [...invoicePayments, ...otherMovements];
+  const totalSales = allPayments.reduce((sum, p) => sum + p.amount, 0);
+  
+  const cashFromInvoices = invoicePayments
+    .filter(p => p.method.toLowerCase() === 'cash')
+    .reduce((sum, p) => sum + p.amount, 0);
+    
+  const cashFromDeposits = otherMovements
+    .filter(p => p.method.toLowerCase() === 'cash')
+    .reduce((sum, p) => sum + p.amount, 0);
+
+  const totalCashSales = cashFromInvoices + cashFromDeposits;
+  const calculatedCashTotal = totalCashSales + startingBalance;
+  const cashCounted = countedValues['Cash'] || 0;
+  const cashDifference = cashCounted - calculatedCashTotal;
+
   const getCalculatedAmount = (type: string) => {
-    if (type === 'Cash') {
-      return invoicePayments
-        .filter(p => p.method.toLowerCase() === 'cash')
+    if (type === 'Cash') return totalCashSales;
+    
+    if (type === 'Card') {
+      return allPayments
+        .filter(p => p.method.toLowerCase().includes('card'))
         .reduce((sum, p) => sum + p.amount, 0);
     }
-    if (type === 'Debit Card') {
-      return invoicePayments
-        .filter(p => p.method.toLowerCase().includes('debit'))
+    
+    if (type === 'Wallet') {
+      return allPayments
+        .filter(p => p.method.toLowerCase() === 'wallet')
         .reduce((sum, p) => sum + p.amount, 0);
     }
-    if (type === 'Credit Card') {
-      return invoicePayments
-        .filter(p => p.method.toLowerCase().includes('credit'))
-        .reduce((sum, p) => sum + p.amount, 0);
-    }
-    if (type === 'Customer Deposit') {
-      return otherMovements
-        .filter(p => p.type === 'deposit')
-        .reduce((sum, p) => sum + p.amount, 0);
-    }
+    
     if (type === 'Refunds') {
-      return invoicePayments
+      return allPayments
         .filter(p => p.amount < 0)
+        .reduce((sum, p) => sum + p.amount, 0);
+    }
+    
+    if (type === 'Other') {
+      // Catch-all for any method that isn't Cash, Card, or Wallet
+      return allPayments
+        .filter(p => {
+          const m = p.method.toLowerCase();
+          return !m.includes('cash') && !m.includes('card') && m !== 'wallet';
+        })
         .reduce((sum, p) => sum + p.amount, 0);
     }
     return 0;
   };
 
-  const paymentTypes = ['Cash', 'Debit Card', 'Credit Card', 'Customer Deposit', 'Refunds'];
+  const paymentTypes = ['Cash', 'Card', 'Wallet', 'Refunds', 'Other'];
   
   const summaries = paymentTypes.map(type => {
     const calculated = getCalculatedAmount(type);
@@ -196,46 +246,41 @@ export default function EndOfDay() {
     };
   });
 
-  const totalSales = invoicePayments.reduce((sum, p) => sum + p.amount, 0);
-  const totalDeposits = otherMovements.filter(p => p.type === 'deposit').reduce((sum, p) => sum + p.amount, 0);
-  
-  const cashSales = getCalculatedAmount('Cash');
-  const calculatedCashTotal = cashSales + totalDeposits + startingBalance;
-  const cashCounted = countedValues['Cash'] || 0;
-  const cashDifference = cashCounted - calculatedCashTotal;
-
   const handleSave = async () => {
     setSaving(true);
     setMessage(null);
     
-    const report: ClosingReport = {
-      branch_id: 1,
-      user_id: 1,
-      report_date: reportDate,
-      starting_balance: startingBalance,
-      cash_counted: cashCounted,
-      calculated_cash: calculatedCashTotal,
-      difference: cashDifference,
-      total_sales: totalSales,
-      total_deposits: totalDeposits,
-      total_cash_in_drawer: cashCounted,
-      comments,
-      payment_summaries: summaries
-    };
-
     try {
-      const response = await fetch('/api/reports/eod', {
+      const payload = {
+        report_date: reportDate,
+        starting_balance: startingBalance,
+        cash_counted: cashCounted,
+        calculated_cash: totalCashSales,
+        difference: cashDifference,
+        total_sales: totalSales,
+        total_deposits: cashFromDeposits, // This might need a broader 'total manual movements' if needed
+        total_cash_in_drawer: cashCounted,
+        comments: comments,
+        payment_summaries: summaries.map(s => ({
+          payment_type: s.payment_type,
+          calculated: s.calculated,
+          counted: s.counted || 0,
+          difference: s.difference
+        }))
+      };
+
+      const res = await fetch('/api/reports/eod', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(report)
+        body: JSON.stringify(payload)
       });
-      if (response.ok) {
-        setMessage({ type: 'success', text: 'End of Day report saved successfully!' });
-      } else {
-        throw new Error('Failed to save report');
-      }
+
+      if (!res.ok) throw new Error('Failed to save');
+      
+      setMessage({ type: 'success', text: 'End of day report saved successfully!' });
     } catch (error) {
-      setMessage({ type: 'error', text: 'Error saving report: ' + error.message });
+      console.error('Error saving EOD:', error);
+      setMessage({ type: 'error', text: 'Failed to save report.' });
     } finally {
       setSaving(false);
     }
@@ -243,285 +288,307 @@ export default function EndOfDay() {
 
   if (loading) {
     return (
-      <div className="h-full flex items-center justify-center bg-slate-50">
+      <div className="h-full flex items-center justify-center bg-[var(--bg-app)]">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-slate-500 font-medium tracking-wide">Loading report data...</p>
+          <div className="w-12 h-12 border-4 border-[var(--brand-primary)] border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-[var(--text-muted)] font-medium tracking-wide">Loading report data...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full bg-white select-none">
-      {/* Sticky Header */}
-      <div className="sticky top-0 z-40 bg-white border-b border-slate-200 shrink-0">
-        <div className="flex items-center justify-between px-4 py-2">
-          <div className="flex items-center gap-3">
-            <h1 className="text-sm font-black text-slate-800 uppercase tracking-tighter">End of Day Report</h1>
-            <div className="flex items-center gap-2 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</span>
-              <span className="text-xs font-bold text-slate-600">
-                {reportDate.split('-').reverse().join('-')}
-              </span>
+    <div className="flex flex-col h-full bg-[var(--bg-app)] transition-colors duration-300">
+      {/* Header bar to match user image */}
+      <div className="sticky top-0 z-40 bg-[var(--bg-card)] border-b border-[var(--border-base)] shrink-0">
+        <div className="flex items-center justify-between px-6 py-2.5">
+          <div className="flex items-center gap-8">
+            <h1 className="text-xl font-normal text-[var(--text-main)]">End of Day Report</h1>
+            <div className="flex items-center bg-[#e67e22] text-white rounded shadow-sm overflow-hidden group">
+              <button 
+                onClick={handlePrevDay}
+                className="px-2 py-2 hover:bg-black/10 transition-colors border-r border-white/20"
+                title="Previous Day"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              
+              <div className="relative px-5 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-black/5 transition-colors">
+                <span className="font-bold text-sm tracking-tight">
+                  {reportDate.split('-').reverse().join('-')}
+                </span>
+                <Calendar size={14} className="opacity-80" />
+                <input 
+                  type="date"
+                  value={reportDate}
+                  onChange={(e) => setReportDate(e.target.value)}
+                  className="absolute inset-0 opacity-0 cursor-pointer"
+                />
+              </div>
+
+              <button 
+                onClick={handleNextDay}
+                className="px-2 py-2 hover:bg-black/10 transition-colors border-l border-white/20"
+                title="Next Day"
+              >
+                <ChevronRight size={16} />
+              </button>
             </div>
           </div>
           
-          <div className="flex items-center gap-2">
-            <button className="flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-300 rounded text-[11px] font-bold text-slate-600 hover:bg-slate-50 transition-colors">
-              <List size={14} />
-              REPORT HISTORY
-            </button>
-            <div className="relative group">
-              <button className="flex items-center gap-1.5 px-3 py-1 bg-cyan-500 text-white rounded text-[11px] font-bold hover:bg-cyan-600 transition-colors">
-                <Printer size={14} />
-                PRINT REPORT
-                <ChevronDown size={12} />
-              </button>
-              <div className="absolute right-0 mt-1 w-48 bg-white border border-slate-200 rounded shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                <button onClick={() => window.print()} className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50">Full Page Printer</button>
-                <button onClick={() => window.print()} className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50">Thermal Printer</button>
+          <div className="flex items-center gap-3">
+            {isRefreshing && (
+              <div className="flex items-center gap-2 px-3 py-1 bg-[var(--bg-zebra)] rounded-full animate-pulse border border-[var(--border-base)]">
+                <div className="w-2 h-2 bg-[var(--brand-primary)] rounded-full animate-bounce"></div>
+                <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Updating...</span>
               </div>
-            </div>
-            <div className="h-6 w-px bg-slate-200 mx-1" />
+            )}
+            <button className="flex items-center gap-2 px-4 py-2 bg-white border border-[var(--border-base)] rounded text-sm font-normal text-[var(--text-main)] hover:bg-[var(--bg-hover)] transition-all">
+              <List size={16} />
+              End of Day List
+            </button>
             <button 
-              onClick={handleSave}
-              disabled={saving}
-              className="flex items-center gap-1.5 px-4 py-1 bg-emerald-500 text-white rounded text-[11px] font-bold hover:bg-emerald-600 transition-colors disabled:opacity-50"
+              onClick={() => window.print()}
+              className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-primary)] text-white rounded text-sm font-normal hover:opacity-90 transition-all shadow-sm"
             >
-              {saving ? (
-                <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              ) : (
-                <>
-                  <Save size={14} />
-                  SAVE CLOSING
-                </>
-              )}
+              <Printer size={16} />
+              Print
             </button>
           </div>
-        </div>
-
-        {/* Quick Summary Strip */}
-        <div className="flex items-center gap-6 px-4 py-1.5 bg-slate-50 border-t border-slate-200 text-[10px] font-bold">
-          <span>
-            <span className="text-slate-400 uppercase tracking-widest mr-2">Calculated :</span>
-            <span className="text-slate-700">€{calculatedCashTotal.toFixed(2)}</span>
-          </span>
-          <span>
-            <span className="text-slate-400 uppercase tracking-widest mr-2">Counted :</span>
-            <span className="text-slate-700">€{cashCounted.toFixed(2)}</span>
-          </span>
-          <span>
-            <span className="text-slate-400 uppercase tracking-widest mr-2">Draft Difference :</span>
-            <span className={cashDifference >= 0 ? 'text-emerald-600' : 'text-red-600'}>
-              {cashDifference >= 0 ? '+' : ''}€{cashDifference.toFixed(2)}
-            </span>
-          </span>
         </div>
       </div>
 
       <div className="flex-1 overflow-auto">
-        {message && (
-          <div className={`p-3 m-4 rounded flex items-center gap-3 animate-in slide-in-from-top-2 duration-300 ${
-            message.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'
-          }`}>
-            {message.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
-            <span className="text-xs font-bold">{message.text}</span>
-            <button onClick={() => setMessage(null)} className="ml-auto underline text-[10px]">Dismiss</button>
-          </div>
-        )}
+        <div className="max-w-[1400px] mx-auto p-6 space-y-6">
+          {message && (
+            <div className={`p-3 rounded flex items-center gap-3 animate-in slide-in-from-top-2 duration-300 ${
+              message.type === 'success' ? 'bg-[var(--brand-success)]/10 text-[var(--brand-success)] border border-[var(--brand-success)]/20' : 'bg-[var(--brand-danger)]/10 text-[var(--brand-danger)] border border-[var(--brand-danger)]/20'
+            }`}>
+              {message.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+              <span className="text-xs font-bold">{message.text}</span>
+              <button onClick={() => setMessage(null)} className="ml-auto underline text-[10px]">Dismiss</button>
+            </div>
+          )}
 
-        {/* Reconciliation Section */}
-        <div className="flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-slate-200">
-          
-          {/* Left: Input Panel */}
-          <div className="lg:w-1/2 p-6 space-y-6">
-            <div>
-              <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-4">Reconciliation Inputs</h2>
-              
-              <div className="space-y-3">
-                <div className="flex items-center gap-4">
-                  <div className="w-1/3">
-                    <label className="text-xs font-bold text-slate-700">Cash Counted</label>
-                    <p className="text-[10px] text-slate-400">Total in drawer</p>
+          {/* Reconciliation Table - Layout to match user image */}
+          <div className="bg-[var(--bg-card)] border border-[var(--border-base)] rounded-sm overflow-hidden shadow-sm">
+            <div className="divide-y divide-[var(--border-base)]">
+              {/* Cash Counted Row */}
+              <div className="grid grid-cols-1 md:grid-cols-12 items-center min-h-[56px] bg-[var(--bg-card)] group hover:bg-[var(--bg-hover)] transition-colors">
+                <div className="md:col-span-4 px-6 md:text-right text-sm font-normal text-[var(--text-muted)]">Cash Counted :</div>
+                <div className="md:col-span-3 px-6"></div>
+                <div className="md:col-span-5 px-6 py-2 flex flex-wrap md:flex-nowrap gap-3 justify-start md:justify-end items-center">
+                  <div className="relative w-full md:w-40">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted-more)] text-xs">€</span>
+                    <input 
+                      type="number" 
+                      value={countedValues['Cash']}
+                      onChange={(e) => setCountedValues(prev => ({ ...prev, 'Cash': parseFloat(e.target.value) || 0 }))}
+                      className="w-full pl-7 pr-3 py-2 bg-white border border-amber-200 rounded-sm font-bold text-amber-700 focus:outline-none focus:ring-1 focus:ring-amber-500 text-right transition-all"
+                      placeholder="0.00"
+                    />
                   </div>
-                  <div className="flex-1 flex gap-2">
-                    <div className="relative flex-1">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">€</span>
-                      <input 
-                        type="number" 
-                        value={countedValues['Cash']}
-                        onChange={(e) => setCountedValues(prev => ({ ...prev, 'Cash': parseFloat(e.target.value) || 0 }))}
-                        className="w-full pl-7 pr-3 py-2 bg-white border border-slate-300 rounded font-bold text-slate-700 focus:border-[#80bdff] focus:outline-none"
-                        placeholder="0.00"
-                      />
-                    </div>
-                    <button 
-                      onClick={() => setShowCashCounter('counted')}
-                      className="px-3 bg-white border border-slate-300 rounded text-slate-500 hover:text-blue-600 transition-colors"
-                      title="Cash Drawer Counter"
-                    >
-                      <Calculator size={18} />
-                    </button>
-                  </div>
+                  <button 
+                    onClick={() => setShowCashCounter('counted')}
+                    className="whitespace-nowrap px-4 py-2 bg-white border border-[var(--border-base)] rounded-sm text-[var(--text-muted)] hover:text-[var(--brand-primary)] hover:border-[var(--brand-primary)] transition-all text-[10px] font-normal uppercase tracking-widest shadow-sm flex items-center gap-2"
+                  >
+                    <Calculator size={14} />
+                    Cash Drawer Counter
+                  </button>
                 </div>
+              </div>
 
-                <div className="flex items-center gap-4">
-                  <div className="w-1/3">
-                    <label className="text-xs font-bold text-slate-700">Starting Balance</label>
-                    <p className="text-[10px] text-slate-400">Opening float</p>
+              {/* Starting Balance Row */}
+              <div className="grid grid-cols-1 md:grid-cols-12 items-center min-h-[56px] bg-[var(--bg-card)] group hover:bg-[var(--bg-hover)] transition-colors">
+                <div className="md:col-span-4 px-6 md:text-right text-sm font-normal text-[var(--text-muted)]">Starting Balance :</div>
+                <div className="md:col-span-3 px-6"></div>
+                <div className="md:col-span-5 px-6 py-2 flex flex-wrap md:flex-nowrap gap-3 justify-start md:justify-end items-center">
+                  <div className="relative w-full md:w-40">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted-more)] text-xs">€</span>
+                    <input 
+                      type="number" 
+                      value={startingBalance}
+                      onChange={(e) => setStartingBalance(parseFloat(e.target.value) || 0)}
+                      className="w-full pl-7 pr-3 py-2 bg-white border border-amber-200 rounded-sm font-bold text-amber-700 focus:outline-none focus:ring-1 focus:ring-amber-500 text-right transition-all"
+                      placeholder="0.00"
+                    />
                   </div>
-                  <div className="flex-1 flex gap-2">
-                    <div className="relative flex-1">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">€</span>
-                      <input 
-                        type="number" 
-                        value={startingBalance}
-                        onChange={(e) => setStartingBalance(parseFloat(e.target.value) || 0)}
-                        className="w-full pl-7 pr-3 py-2 bg-white border border-slate-300 rounded font-bold text-slate-700 focus:border-[#80bdff] focus:outline-none"
-                        placeholder="0.00"
-                      />
-                    </div>
-                    <button 
-                      onClick={() => setShowCashCounter('starting')}
-                      className="px-3 bg-white border border-slate-300 rounded text-slate-500 hover:text-blue-600 transition-colors"
-                      title="Opening Drawer Counter"
-                    >
-                      <Calculator size={18} />
-                    </button>
-                  </div>
+                  <button 
+                    onClick={() => setShowCashCounter('starting')}
+                    className="whitespace-nowrap px-4 py-2 bg-white border border-[var(--border-base)] rounded-sm text-[var(--text-muted)] hover:text-[var(--brand-primary)] hover:border-[var(--brand-primary)] transition-all text-[10px] font-normal uppercase tracking-widest shadow-sm flex items-center gap-2"
+                  >
+                    <Calculator size={14} />
+                    Cash Drawer Counter
+                  </button>
                 </div>
+              </div>
 
-                <div className="pt-4 border-t border-slate-100">
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Closing Comments</label>
-                  <textarea 
-                    value={comments}
-                    onChange={(e) => setComments(e.target.value)}
-                    className="w-full h-24 p-3 bg-slate-50 border border-slate-200 rounded text-xs focus:bg-white focus:border-[#80bdff] focus:outline-none transition-all resize-none"
-                    placeholder="Note any discrepancies or events..."
-                  />
+              {/* Calculated Cash Row */}
+              <div className="grid grid-cols-1 md:grid-cols-12 items-center min-h-[56px] bg-[var(--bg-zebra)]">
+                <div className="md:col-span-4 px-6 md:text-right text-sm font-normal text-[var(--text-main)]">Calculated Cash :</div>
+                <div className="md:col-span-3 px-6 md:text-right font-bold text-blue-600 bg-blue-50/50 h-full flex items-center justify-end text-sm">
+                  €{calculatedCashTotal.toFixed(2)}
+                </div>
+                <div className="md:col-span-3 px-6 md:text-right font-bold text-amber-600 bg-amber-50/50 h-full flex items-center justify-end text-sm">
+                  €{cashCounted.toFixed(2)}
+                </div>
+                <div className="md:col-span-2 py-4 px-6 bg-[var(--bg-accent-subtle)] md:text-right font-bold text-[var(--text-main)] text-sm border-l border-[var(--border-base)]">
+                  {cashDifference >= 0 ? '' : '-' }€{Math.abs(cashDifference).toFixed(2)}
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Right: Payment Summaries */}
-          <div className="lg:w-1/2">
-             <table className="w-full text-left border-collapse border-b border-slate-200">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="py-2 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Payment Type</th>
-                  <th className="py-2 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">system</th>
-                  <th className="py-2 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">counted</th>
-                  <th className="py-2 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">diff</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                {summaries.map((s, idx) => (
-                  <tr key={idx} className={s.payment_type === 'Cash' ? 'bg-slate-50/50' : ''}>
-                    <td className="py-2.5 px-4 text-xs font-bold text-slate-700">{s.payment_type}</td>
-                    <td className="py-2.5 px-4 text-right font-mono text-xs text-slate-500">€{s.calculated.toFixed(2)}</td>
-                    <td className="py-2.5 px-4 text-right">
-                      {s.payment_type === 'Cash' ? (
-                        <span className="font-mono font-bold text-xs">€{s.counted.toFixed(2)}</span>
-                      ) : (
-                        <input 
-                          type="number" 
-                          value={s.counted || ''}
-                          onChange={(e) => setCountedValues(prev => ({ ...prev, [s.payment_type]: parseFloat(e.target.value) || 0 }))}
-                          className="w-24 px-2 py-1 bg-white border border-slate-300 rounded text-right font-mono font-bold text-xs focus:outline-none"
-                          placeholder="0.00"
-                        />
-                      )}
+            {/* Payment Summaries Sub-Header */}
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-[var(--bg-accent-subtle)] border-y border-[var(--border-base)] text-[10px] font-normal text-[var(--text-main)] uppercase tracking-widest">
+                    <th className="py-3 px-6 text-left w-1/3">Payment Type</th>
+                    <th className="py-3 px-6 text-right w-1/6 bg-blue-50/80 text-blue-700">Calculated</th>
+                    <th className="py-3 px-6 text-right w-1/6 bg-amber-50/80 text-amber-700">Counted</th>
+                    <th className="py-3 px-6 text-right w-1/6">Difference</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--border-base)]">
+                  {summaries.filter(s => s.payment_type !== 'Cash').map((s, idx) => (
+                    <tr key={idx} className="bg-[var(--bg-card)] group hover:bg-[var(--bg-hover)] transition-colors">
+                      <td className="py-2.5 px-6 text-sm font-normal text-[var(--text-main)]">{s.payment_type}</td>
+                      <td className={`py-2.5 px-6 text-right text-sm bg-blue-50/30 ${s.calculated !== 0 ? 'font-black text-blue-600' : 'font-normal text-[var(--text-muted-more)] opacity-40'}`}>
+                        €{s.calculated.toFixed(2)}
+                      </td>
+                      <td className="py-2.5 px-6 text-right bg-amber-50/30">
+                        <div className="relative inline-block w-40">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-600/50 text-[10px]">€</span>
+                          <input 
+                            type="number" 
+                            value={s.counted || ''}
+                            onChange={(e) => setCountedValues(prev => ({ ...prev, [s.payment_type]: parseFloat(e.target.value) || 0 }))}
+                            className={`w-full pl-6 pr-3 py-1 bg-white border border-amber-200 rounded-sm text-right text-sm focus:outline-none focus:ring-1 focus:ring-amber-500 transition-all ${s.counted !== 0 ? 'font-black text-amber-700' : 'font-normal text-[var(--text-muted-more)] opacity-40'}`}
+                            placeholder="0"
+                          />
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-6 w-48 bg-[var(--bg-accent-subtle)] text-right font-bold text-[var(--text-main)] text-sm border-l border-[var(--border-base)]">
+                        {s.difference >= 0 ? '' : '-' }€{Math.abs(s.difference).toFixed(2)}
+                      </td>
+                    </tr>
+                  ))}
+                  {/* Total Row */}
+                  <tr className="bg-[var(--bg-zebra)] text-[var(--text-main)] border-t-2 border-[var(--border-base)]">
+                    <td className="py-4 px-6 text-right text-sm font-black uppercase tracking-widest opacity-60">Total :</td>
+                    <td className="py-4 px-6 text-right font-black text-lg">
+                      €{totalSales.toFixed(2)}
                     </td>
-                    <td className={`py-2.5 px-4 text-right font-mono font-bold text-xs ${
-                      s.difference === 0 ? 'text-slate-400' : 
-                      s.difference > 0 ? 'text-emerald-600' : 
-                      'text-red-600'
-                    }`}>
-                      {s.difference !== 0 && (s.difference >= 0 ? '+' : '')}€{s.difference.toFixed(2)}
+                    <td className="py-4 px-6 text-right font-black text-lg">
+                      €{( (cashCounted - startingBalance) + summaries.filter(s => s.payment_type !== 'Cash').reduce((sum, s) => sum + s.counted, 0) ).toFixed(2)}
+                    </td>
+                    <td className="py-4 px-6 w-48 bg-[var(--bg-accent-subtle)] text-right font-black text-lg border-l border-[var(--border-base)]">
+                      {(( (cashCounted - startingBalance) + summaries.filter(s => s.payment_type !== 'Cash').reduce((sum, s) => sum + s.counted, 0) ) - totalSales) >= 0 ? '' : '-'}
+                      €{Math.abs(( (cashCounted - startingBalance) + summaries.filter(s => s.payment_type !== 'Cash').reduce((sum, s) => sum + s.counted, 0) ) - totalSales).toFixed(2)}
                     </td>
                   </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="bg-slate-900 text-white font-bold">
-                  <td className="py-3 px-4 text-xs uppercase tracking-widest">Closing Total</td>
-                  <td className="py-3 px-4 text-right font-mono text-xs text-slate-400">€{(summaries.reduce((sum, s) => sum + s.calculated, 0)).toFixed(2)}</td>
-                  <td className="py-3 px-4 text-right font-mono text-xs">€{(summaries.reduce((sum, s) => sum + s.counted, 0)).toFixed(2)}</td>
-                  <td className={`py-3 px-4 text-right font-mono text-xs ${(summaries.reduce((sum, s) => sum + s.difference, 0)) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                    €{(summaries.reduce((sum, s) => sum + s.difference, 0)).toFixed(2)}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
 
-        {/* Transaction Detail Section (Invoice Information) */}
-        <div className="bg-white">
-          <div className="px-6 py-4">
-            <h2 className="text-[10px] font-black text-black uppercase tracking-widest leading-none">Transaction & Payment Details (All Invoices)</h2>
+          {/* Comments Section */}
+          <div className="flex items-start gap-4">
+            <label className="text-sm font-bold text-[var(--text-main)] pt-2 shrink-0">Comments :</label>
+            <textarea 
+              value={comments}
+              onChange={(e) => setComments(e.target.value)}
+              className="flex-1 min-h-[80px] p-4 bg-[var(--bg-card)] border border-[var(--border-base)] rounded-sm text-sm text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-primary)]"
+              placeholder="Add your closing notes here..."
+            />
           </div>
-          
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-300 border-b border-slate-400 text-[10px] font-black text-black uppercase tracking-widest">
-                <th className="py-3 px-6">User</th>
-                <th className="py-3 px-4">Time</th>
-                <th className="py-3 px-4">Reference</th>
-                <th className="py-3 px-4">Customer</th>
-                <th className="py-3 px-4">Method</th>
-                <th className="py-3 px-6 text-right">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {invoicePayments.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-400 text-xs italic font-medium">No invoice-linked payments recorded for this date.</td>
-                </tr>
-              ) : (
-                invoicePayments.map((payment, idx) => (
-                  <tr 
-                    key={idx} 
-                    className={`transition-colors group hover:bg-slate-200/50 ${idx % 2 === 0 ? 'bg-slate-50' : 'bg-white'}`}
-                  >
-                    <td className="py-3 px-6 text-xs font-bold text-slate-600">{payment.user_name || 'Staff'}</td>
-                    <td className="py-3 px-4 text-xs text-slate-400 font-medium">
-                      {payment.paid_at ? new Date(payment.paid_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase() : '--:--'}
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-blue-600 font-bold text-xs hover:underline cursor-pointer transition-all">
-                          {payment.invoice_number}
-                        </span>
-                        <ExternalLink size={10} className="text-blue-300 opacity-0 group-hover:opacity-100 transition-all" />
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 text-xs font-bold text-slate-500 italic">
-                      {payment.customer_name || 'Walk-in Customer'}
-                    </td>
-                    <td className="py-3 px-4">
-                      <select 
-                        value={payment.method}
-                        onChange={(e) => updatePaymentMethod(payment.id, e.target.value)}
-                        className="bg-transparent text-[11px] font-black text-slate-600 border-none p-0 focus:ring-0 outline-none cursor-pointer hover:text-blue-600 transition-colors uppercase tracking-tight"
-                      >
-                        <option value="Cash">Cash</option>
-                        <option value="Debit Card">Debit Card</option>
-                        <option value="Credit Card">Credit Card</option>
-                        <option value="Wallet">Wallet</option>
-                        <option value="Other">Other</option>
-                      </select>
-                    </td>
-                    <td className="py-3 px-6 text-right font-mono font-black text-xs text-slate-900">
-                      €{payment.amount.toFixed(2)}
-                    </td>
+
+          {/* Save Button */}
+          <div className="flex justify-center pt-1">
+            <button 
+              onClick={handleSave}
+              disabled={saving}
+              className="bg-[var(--brand-success)] hover:opacity-90 text-white font-bold py-1.5 px-10 rounded-sm text-sm transition-all shadow-sm disabled:opacity-50 flex items-center gap-2"
+            >
+              {saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : 'Save'}
+            </button>
+          </div>
+
+          {/* Payment Information Table */}
+          <div className="space-y-4">
+            <h2 className="text-xl font-normal text-[var(--text-main)]">Payment Information</h2>
+            <div className="bg-[var(--bg-card)] border border-[var(--border-base)] rounded-sm overflow-hidden">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-[var(--bg-accent-subtle)] border-b border-[var(--border-base)] text-[11px] font-bold text-[var(--text-main)] uppercase tracking-wider">
+                    <th className="py-3 px-4 border-r border-[var(--border-base)]">User</th>
+                    <th className="py-3 px-4 border-r border-[var(--border-base)]">Time</th>
+                    <th className="py-3 px-4 border-r border-[var(--border-base)]">Invoice No.</th>
+                    <th className="py-3 px-4 border-r border-[var(--border-base)]">Customer Name</th>
+                    <th className="py-3 px-4 border-r border-[var(--border-base)]">Payment Type</th>
+                    <th className="py-3 px-6 text-right">Amount</th>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                </thead>
+                <tbody className="divide-y divide-[var(--border-base)]">
+                  {allPayments.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-[var(--text-muted)] text-sm italic">No payments recorded for this date.</td>
+                    </tr>
+                  ) : (
+                    <>
+                      {allPayments.map((payment, idx) => (
+                        <tr 
+                          key={idx} 
+                          className={`transition-colors group hover:bg-[var(--bg-hover)] ${idx % 2 === 1 ? 'bg-[var(--bg-zebra)]' : 'bg-[var(--bg-card)]'}`}
+                        >
+                          <td className="py-2.5 px-4 text-sm text-[var(--text-muted)] border-r border-[var(--border-base)]">{payment.user_name || 'Staff'}</td>
+                          <td className="py-2.5 px-4 text-sm text-[var(--text-muted)] border-r border-[var(--border-base)]">
+                            {payment.paid_at ? new Date(payment.paid_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase() : '--:--'}
+                          </td>
+                          <td className="py-2.5 px-4 border-r border-[var(--border-base)]">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[var(--brand-primary)] font-bold text-xs hover:underline cursor-pointer transition-all flex items-center gap-1">
+                                {payment.invoice_number || 'DEPOSIT'}
+                                <ExternalLink size={10} className="opacity-0 group-hover:opacity-100 transition-all" />
+                              </span>
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-4 text-sm text-[var(--text-muted)] border-r border-[var(--border-base)]">
+                            {payment.customer_name || ''}
+                          </td>
+                          <td className="py-2.5 px-4 border-r border-[var(--border-base)]">
+                            <select 
+                              value={payment.method}
+                              onChange={(e) => updatePaymentMethod(payment.id, e.target.value)}
+                              className="bg-transparent text-sm text-[var(--text-main)] border border-[var(--border-base)] rounded px-2 py-1 focus:ring-0 outline-none cursor-pointer hover:border-[var(--brand-primary)] transition-colors w-full"
+                            >
+                              <option value="Cash">Cash</option>
+                              <option value="Debit Card">Debit Card</option>
+                              <option value="Credit Card">Credit Card</option>
+                              <option value="Wallet">Wallet</option>
+                              <option value="Other">Other</option>
+                            </select>
+                          </td>
+                          <td className={`py-2.5 px-6 text-right text-sm ${payment.amount !== 0 ? 'font-black text-[var(--text-main)]' : 'font-normal text-[var(--text-muted-more)] opacity-40'}`}>
+                            €{payment.amount.toFixed(2)}
+                          </td>
+                        </tr>
+                      ))}
+                      {/* Total Footer for Payment Information */}
+                      <tr className="bg-[var(--bg-accent-subtle)] border-t-2 border-[var(--border-base)]">
+                        <td colSpan={5} className="py-3 px-6 text-right text-xs font-black uppercase tracking-widest text-[var(--text-main)]">
+                          Total Payments :
+                        </td>
+                        <td className="py-3 px-6 text-right font-black text-blue-600 text-base">
+                          €{allPayments.reduce((sum, p) => sum + p.amount, 0).toFixed(2)}
+                        </td>
+                      </tr>
+                    </>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
 

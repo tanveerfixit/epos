@@ -18,9 +18,10 @@ interface Device {
 interface Props {
   onSelectPO: (poNumber: string) => void;
   onSelectProduct: (skuId: number) => void;
+  onSelectDevice: (id: number) => void;
 }
 
-export default function DeviceInventory({ onSelectPO, onSelectProduct }: Props) {
+export default function DeviceInventory({ onSelectPO, onSelectProduct, onSelectDevice }: Props) {
   const [devices, setDevices] = useState<Device[]>([]);
   const [statusFilter, setStatusFilter] = useState('in_stock');
 
@@ -89,7 +90,7 @@ export default function DeviceInventory({ onSelectPO, onSelectProduct }: Props) 
                 <tr key={device.id} className={`border-b border-slate-200 text-sm hover:bg-slate-50 transition-colors ${idx % 2 === 1 ? 'bg-[#f8f9fa]' : ''}`}>
                   <td className="px-4 py-2 border-r border-slate-200">
                     <button 
-                      onClick={() => onSelectProduct(device.sku_id)}
+                      onClick={() => onSelectDevice(device.id)}
                       className="text-[#3498db] hover:underline text-left font-medium"
                     >
                       {device.product_name}
@@ -98,7 +99,14 @@ export default function DeviceInventory({ onSelectPO, onSelectProduct }: Props) 
                   <td className="px-4 py-2 border-r border-slate-200 text-center text-slate-600">{device.color || ''}</td>
                   <td className="px-4 py-2 border-r border-slate-200 text-center text-slate-600">{device.gb || ''}</td>
                   <td className="px-4 py-2 border-r border-slate-200 text-center text-slate-600">{device.condition || ''}</td>
-                  <td className="px-4 py-2 border-r border-slate-200 text-slate-600 font-mono text-xs">{device.imei}</td>
+                  <td className="px-4 py-2 border-r border-slate-200">
+                    <button 
+                      onClick={() => onSelectDevice(device.id)}
+                      className="text-[#3498db] hover:underline font-mono text-xs"
+                    >
+                      {device.imei}
+                    </button>
+                  </td>
                   <td className="px-4 py-2 border-r border-slate-200 text-center">
                     {device.po_number && (
                       <button 

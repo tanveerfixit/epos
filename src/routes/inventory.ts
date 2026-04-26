@@ -34,7 +34,8 @@ router.post('/add', async (req: any, res) => {
       poId = (pr as any).insertId;
     } else {
       poId = (existPo as any[])[0].id;
-      await conn.execute('UPDATE purchase_orders SET total=total+? WHERE id=?', [totalAmount, poId]);
+      await conn.execute('UPDATE purchase_orders SET total=total+?, supplier_id=COALESCE(?, supplier_id) WHERE id=?', 
+        [totalAmount, supplier_id || null, poId]);
     }
     await conn.execute(
       'INSERT INTO purchase_order_items (po_id,product_id,description,ordered_qty,received_qty,unit_cost,total) VALUES (?,?,?,?,?,?,?)',
@@ -47,6 +48,15 @@ router.post('/add', async (req: any, res) => {
         await conn.execute(
           "INSERT INTO devices (business_id,branch_id,sku_id,imei,cost_price,selling_price,color,gb,`condition`,po_number,status) VALUES (?,?,?,?,?,?,?,?,?,?,'in_stock')",
           [req.user.business_id, activeBranchId, sku_id, item.imei, cost_price, selling_price, item.color, item.gb, item.condition, finalPoNumber]
+        );
+        const deviceId = (await conn.execute('SELECT LAST_INSERT_ID() as id'))[0] as any;
+        await conn.execute(
+          'INSERT INTO device_activity (device_id, user_id, activity, details) VALUES (?, ?, ?, ?)',
+          [deviceId[0].id, req.userId, 'Device Created', `Added to inventory via PO: ${finalPoNumber}`]
+        );
+        await conn.execute(
+          'INSERT INTO activity_logs (device_id, user_id, activity_type, description, reference_link) VALUES (?, ?, ?, ?, ?)',
+          [deviceId[0].id, req.userId, 'Device Created', 'Initial inventory entry', finalPoNumber]
         );
         await conn.execute(
           'INSERT INTO branch_stock (branch_id,sku_id,quantity) VALUES (?,?,1) ON DUPLICATE KEY UPDATE quantity=quantity+1',
@@ -102,6 +112,108 @@ router.get('/purchase-orders/:id', async (req, res) => {
     if (!po) return res.status(404).json({ error: 'Purchase order not found' });
     const items = await query('SELECT * FROM purchase_order_items WHERE po_id=?', [req.params.id]);
     res.json({ ...po, items });
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+// GET /api/devices/:id
+router.get('/devices/:id', async (req: any, res) => {
+  try {
+    const device = await queryOne(`
+      SELECT d.*, p.name as product_name, s.sku_code, s.barcode
+      FROM devices d
+      JOIN product_skus s ON d.sku_id=s.id
+      JOIN products p ON s.product_id=p.id
+      WHERE d.id=? AND d.business_id=?
+    `, [req.params.id, req.user.business_id]);
+    if (!device) return res.status(404).json({ error: 'Device not found' });
+    res.json(device);
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+// PUT /api/devices/:id
+router.put('/devices/:id', async (req: any, res) => {
+  const { color, gb, ram, condition, cost_price, selling_price, unlocked, imei_status, carrier } = req.body;
+  try {
+    const old = await queryOne('SELECT * FROM devices WHERE id=? AND business_id=?', [req.params.id, req.user.business_id]);
+    if (!old) return res.status(404).json({ error: 'Device not found' });
+
+    await execute(`
+      UPDATE devices SET 
+        color=?, gb=?, ram=?, \`condition\`=?, cost_price=?, selling_price=?, 
+        unlocked=?, imei_status=?, carrier=?
+      WHERE id=? AND business_id=?
+    `, [
+      color || old.color, gb || old.gb, ram || old.ram, condition || old.condition, 
+      cost_price || old.cost_price, selling_price || old.selling_price,
+      unlocked || old.unlocked, imei_status || old.imei_status, carrier || old.carrier,
+      req.params.id, req.user.business_id
+    ]);
+
+    // Log what changed
+    const changes: string[] = [];
+    if (color && color !== old.color) changes.push(`Color: ${old.color} -> ${color}`);
+    if (gb && gb !== old.gb) changes.push(`GB: ${old.gb} -> ${gb}`);
+    if (ram && ram !== old.ram) changes.push(`RAM: ${old.ram} -> ${ram}`);
+    if (condition && condition !== old.condition) changes.push(`Condition: ${old.condition} -> ${condition}`);
+    if (cost_price && cost_price != old.cost_price) changes.push(`Cost: ${old.cost_price} -> ${cost_price}`);
+    if (selling_price && selling_price != old.selling_price) changes.push(`Selling: ${old.selling_price} -> ${selling_price}`);
+
+    if (changes.length > 0) {
+      await execute('INSERT INTO device_activity (device_id, user_id, activity, details) VALUES (?, ?, ?, ?)',
+        [req.params.id, req.userId, 'Device Updated', changes.join(', ')]);
+      await execute('INSERT INTO activity_logs (device_id, user_id, activity_type, description) VALUES (?, ?, ?, ?)',
+        [req.params.id, req.userId, 'Device Updated', changes.join(', ')]);
+    }
+
+    res.json({ success: true });
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+// GET /api/devices/:id/activity
+router.get('/devices/:id/activity', async (req: any, res) => {
+  try {
+    const activities = await query(`
+      SELECT 'device' as source, a.id, a.user_id, a.activity, a.details, a.created_at, u.name as user_name 
+      FROM device_activity a
+      LEFT JOIN users u ON a.user_id=u.id
+      WHERE a.device_id=?
+      UNION ALL
+      SELECT 'product' as source, pa.id, pa.user_id, pa.activity, pa.details, pa.created_at, u.name as user_name
+      FROM product_activity pa
+      LEFT JOIN users u ON pa.user_id=u.id
+      WHERE pa.sku_id = (SELECT sku_id FROM devices WHERE id=?)
+      UNION ALL
+      SELECT 'log' as source, al.id, al.user_id, al.activity_type as activity, al.description as details, al.created_at, u.name as user_name
+      FROM activity_logs al
+      LEFT JOIN users u ON al.user_id=u.id
+      WHERE al.device_id=? OR al.product_id = (SELECT sku_id FROM devices WHERE id=?)
+      ORDER BY created_at DESC
+    `, [req.params.id, req.params.id, req.params.id, req.params.id]);
+    res.json(activities);
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/devices/:id/activity (Add Note)
+router.post('/devices/:id/activity', async (req: any, res) => {
+  const { activity, details } = req.body;
+  try {
+    const device = await queryOne('SELECT id FROM devices WHERE id=? AND business_id=?', [req.params.id, req.user.business_id]);
+    if (!device) return res.status(404).json({ error: 'Device not found' });
+    
+    await execute('INSERT INTO device_activity (device_id, user_id, activity, details) VALUES (?, ?, ?, ?)',
+      [req.params.id, req.userId, activity || 'Note Added', details || '']);
+    await execute('INSERT INTO activity_logs (device_id, user_id, activity_type, description) VALUES (?, ?, ?, ?)',
+      [req.params.id, req.userId, activity || 'Note Added', details || '']);
+    res.json({ success: true });
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+// DELETE /api/devices/:id
+router.delete('/devices/:id', async (req: any, res) => {
+  try {
+    const result = await execute('DELETE FROM devices WHERE id=? AND business_id=?', [req.params.id, req.user.business_id]);
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Device not found or access denied' });
+    res.json({ success: true });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 

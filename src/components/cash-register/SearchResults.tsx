@@ -28,11 +28,11 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
   };
 
   return (
-    <div className="absolute top-full left-0 right-0 z-[60] bg-[var(--bg-card)] border-x border-b border-[var(--border-base)] rounded-b-2xl shadow-2xl overflow-hidden animate-in slide-in-from-top-1 duration-200">
+    <div className="absolute top-full left-0 right-0 z-[60] bg-[var(--bg-card)] border-x border-b border-[var(--border-base)] rounded-none shadow-2xl overflow-hidden animate-in slide-in-from-top-1 duration-200">
       <div className="pt-2">
-        {results.map((product) => (
+        {results.map((product, idx) => (
           <button
-            key={product.id}
+            key={`${product.id}-${idx}`}
             onClick={() => onAddProduct(product)}
             className="w-full text-left px-5 py-2.5 hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2 text-sm font-normal text-[var(--text-main)] group"
           >

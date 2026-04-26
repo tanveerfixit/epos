@@ -35,7 +35,7 @@ export const ActivityLog: React.FC<ActivityLogProps> = ({ activities }) => {
       >
         <div className="flex items-center gap-2">
           <History size={16} className="text-[var(--text-muted)]" />
-          <h2 className="font-bold text-black dark:text-black text-sm">Recent Activity</h2>
+          <h2 className="font-bold text-[var(--text-main)] text-sm">Recent Activity</h2>
           {activities.length > 0 && (
             <span className="bg-[var(--bg-card)] text-blue-600 dark:text-blue-400 text-[10px] px-1.5 py-0.5 rounded-full font-bold shadow-sm border border-[var(--border-base)]">
               {activities.length}

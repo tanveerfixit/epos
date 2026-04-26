@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserPlus, Search } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import { Customer } from '../types';
 import CustomerFormModal from './CustomerFormModal';
 
@@ -58,20 +58,20 @@ export default function CustomerList({ onSelectCustomer }: CustomerListProps) {
         <h2 className="text-xl font-medium text-[var(--text-main)]">Customers</h2>
         <div className="flex gap-2">
           <div className="relative w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted-more)]" size={16} />
             <input
               type="text"
               placeholder="Search name, phone or email..."
-              className="w-full pl-10 pr-4 py-1.5 bg-[var(--bg-card)] border border-[var(--border-base)] rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#3498db] text-[var(--text-main)]"
+              className="w-full pl-10 pr-4 py-1.5 bg-[var(--bg-card)] border border-[var(--border-base)] rounded text-sm focus:outline-none focus:ring-1 focus:ring-[var(--brand-primary)] text-[var(--text-main)]"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
             />
           </div>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="bg-[#3498db] hover:bg-[#2980b9] text-white font-medium py-1.5 px-4 rounded text-sm flex items-center gap-2 transition-all"
+            className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-medium py-1.5 px-4 rounded text-sm flex items-center gap-2 transition-all"
           >
-            <UserPlus size={16} />
+            <Plus size={16} />
             Add Customer
           </button>
         </div>
@@ -96,7 +96,7 @@ export default function CustomerList({ onSelectCustomer }: CustomerListProps) {
                 <td className="px-4 py-2 border-r border-[var(--border-base)] font-bold text-[var(--text-main)]">
                   <button
                     onClick={() => onSelectCustomer(customer.id)}
-                    className="hover:text-blue-600 transition-colors text-left text-[var(--text-main)]"
+                    className="hover:text-[var(--brand-primary)] transition-colors text-left text-[var(--text-main)]"
                   >
                     {customer.name}
                   </button>
@@ -104,13 +104,13 @@ export default function CustomerList({ onSelectCustomer }: CustomerListProps) {
                 <td className="px-4 py-2 border-r border-[var(--border-base)] text-[var(--text-muted)]">{customer.phone || '—'}</td>
                 <td className="px-4 py-2 border-r border-[var(--border-base)] text-[var(--text-muted)]">{customer.email || '—'}</td>
                 <td className="px-4 py-2 border-r border-[var(--border-base)] text-[var(--text-muted)]">{customer.company || '—'}</td>
-                <td className="px-4 py-2 border-r border-[var(--border-base)] text-right font-bold text-emerald-600">
+                <td className="px-4 py-2 border-r border-[var(--border-base)] text-right font-bold text-[var(--brand-success)]">
                   €{Number(customer.wallet_balance || 0).toFixed(2)}
                 </td>
                 <td className="px-4 py-2 text-center">
                   <button
                     onClick={() => onSelectCustomer(customer.id)}
-                    className="text-[#3498db] hover:underline font-medium text-xs"
+                    className="text-[var(--brand-primary)] hover:underline font-medium text-xs"
                   >
                     View History
                   </button>

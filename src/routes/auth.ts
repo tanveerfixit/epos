@@ -47,7 +47,10 @@ export async function requireAuthAsync(req: any, res: any, next: any) {
     req.userId = userId;
     req.user = user;
     next();
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
+  } catch (e: any) { 
+    console.error('[Auth] requireAuthAsync error:', e.message);
+    res.status(401).json({ error: 'Invalid or expired token' }); 
+  }
 }
 
 export async function requireAdminAsync(req: any, res: any, next: any) {

@@ -184,7 +184,11 @@ router.post('/manufacturers', async (req: any, res) => {
 
 router.get('/suppliers', async (req: any, res) => {
   try { res.json(await query('SELECT * FROM suppliers WHERE business_id=?', [req.user.business_id])); }
-  catch (e: any) { res.status(500).json({ error: e.message }); }
+  catch (e: any) { 
+    require('fs').appendFileSync('debug.log', `GET /suppliers error: ${e.message}\n${e.stack}\n`);
+    console.error('GET /suppliers error:', e);
+    res.status(500).json({ error: e.message }); 
+  }
 });
 
 router.post('/suppliers', async (req: any, res) => {
@@ -193,6 +197,13 @@ router.post('/suppliers', async (req: any, res) => {
     const r = await execute('INSERT INTO suppliers (business_id,name,phone,email,contact_person) VALUES (?,?,?,?,?)',
       [req.user.business_id, name, phone, email, contact_person]);
     res.json({ id: r.insertId, name, phone, email, contact_person });
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+router.delete('/suppliers/:id', async (req: any, res) => {
+  try {
+    await execute('DELETE FROM suppliers WHERE id=? AND business_id=?', [req.params.id, req.user.business_id]);
+    res.json({ success: true });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 

@@ -9,11 +9,11 @@ interface RepairUpdateModalProps {
 }
 
 const STATUS_OPTIONS = [
-  { value: 'new',       label: 'New',          color: 'bg-amber-100 text-amber-700 border-amber-300' },
-  { value: 'diagnosed', label: 'Diagnosed',    color: 'bg-blue-100 text-blue-700 border-blue-300' },
-  { value: 'repairing', label: 'Under Process', color: 'bg-purple-100 text-purple-700 border-purple-300' },
-  { value: 'completed', label: 'Completed',    color: 'bg-emerald-100 text-emerald-700 border-emerald-300' },
-  { value: 'collected', label: 'Collected',    color: 'bg-slate-100 text-slate-600 border-slate-300' },
+  { value: 'new',       label: 'New',          color: 'bg-[var(--bg-zebra)] text-[var(--text-main)] border-[var(--border-header)]' },
+  { value: 'diagnosed', label: 'Diagnosed',    color: 'bg-[var(--bg-hover)] text-[var(--brand-primary)] border-[var(--brand-primary)]' },
+  { value: 'repairing', label: 'Under Process', color: 'bg-[var(--brand-warning)]/10 text-[var(--brand-warning)] border-[var(--brand-warning)]' },
+  { value: 'completed', label: 'Completed',    color: 'bg-[var(--brand-success)]/10 text-[var(--brand-success)] border-[var(--brand-success)]' },
+  { value: 'collected', label: 'Collected',    color: 'bg-[var(--bg-accent-subtle)] text-[var(--text-muted)] border-[var(--border-header)]' },
 ];
 
 export default function RepairUpdateModal({ repair, onClose, onSaved }: RepairUpdateModalProps) {
@@ -74,34 +74,34 @@ export default function RepairUpdateModal({ repair, onClose, onSaved }: RepairUp
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
-      <div className="bg-white rounded shadow-2xl w-full max-w-[560px] overflow-hidden flex flex-col" style={{ maxHeight: '90vh' }}>
+      <div className="bg-[var(--bg-card)] rounded shadow-2xl w-full max-w-[560px] overflow-hidden flex flex-col" style={{ maxHeight: '90vh' }}>
         
         {/* Header */}
-        <div className="bg-[#e9ecef] px-4 py-3 flex justify-between items-center border-b border-slate-300 shrink-0">
+        <div className="bg-[var(--bg-accent-subtle)] px-4 py-3 flex justify-between items-center border-b border-[var(--border-header)] shrink-0">
           <div>
-            <h3 className="text-[#333] font-bold text-base">
+            <h3 className="text-[var(--text-main)] font-bold text-base">
               Job #{repair.id} — {repair.device_model}
             </h3>
-            <p className="text-slate-500 text-xs mt-0.5">{repair.customer_name || 'Unknown Customer'}</p>
+            <p className="text-[var(--text-muted)] text-xs mt-0.5">{repair.customer_name || 'Unknown Customer'}</p>
           </div>
-          <button onClick={onClose} className="text-slate-500 hover:text-slate-800 transition-colors">
+          <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors">
             <X size={20} />
           </button>
         </div>
 
         {/* Job Summary Bar */}
-        <div className="flex items-center gap-4 px-4 py-2.5 bg-slate-50 border-b border-slate-200 text-xs shrink-0">
+        <div className="flex items-center gap-4 px-4 py-2.5 bg-[var(--bg-zebra)] border-b border-[var(--border-base)] text-xs shrink-0">
           <span>
-            <span className="text-slate-400 uppercase font-bold mr-1">Quote</span>
-            <span className="font-bold text-slate-700">€{Number(repair.total_quote || 0).toFixed(2)}</span>
+            <span className="text-[var(--text-muted-more)] uppercase font-bold mr-1">Quote</span>
+            <span className="font-bold text-[var(--text-main)]">€{Number(repair.total_quote || 0).toFixed(2)}</span>
           </span>
           <span>
-            <span className="text-slate-400 uppercase font-bold mr-1">Paid</span>
-            <span className="font-bold text-emerald-600">€{Number(repair.deposit_paid || 0).toFixed(2)}</span>
+            <span className="text-[var(--text-muted-more)] uppercase font-bold mr-1">Paid</span>
+            <span className="font-bold text-[var(--brand-success)]">€{Number(repair.deposit_paid || 0).toFixed(2)}</span>
           </span>
           <span>
-            <span className="text-slate-400 uppercase font-bold mr-1">Balance</span>
-            <span className={`font-bold ${remaining > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+            <span className="text-[var(--text-muted-more)] uppercase font-bold mr-1">Balance</span>
+            <span className={`font-bold ${remaining > 0 ? 'text-[var(--brand-danger)]' : 'text-[var(--brand-success)]'}`}>
               €{remaining.toFixed(2)}
             </span>
           </span>
@@ -113,15 +113,15 @@ export default function RepairUpdateModal({ repair, onClose, onSaved }: RepairUp
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-slate-200 bg-white shrink-0">
+        <div className="flex border-b border-[var(--border-base)] bg-[var(--bg-card)] shrink-0">
           {(['status', 'payment', 'notes'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`px-5 py-2.5 text-sm font-bold capitalize transition-colors border-b-2 ${
                 activeTab === tab
-                  ? 'border-[#007bff] text-[#007bff]'
-                  : 'border-transparent text-slate-500 hover:text-slate-700'
+                  ? 'border-[var(--brand-primary)] text-[var(--brand-primary)]'
+                  : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-main)]'
               }`}
             >
               {tab === 'status' ? '📋 Status' : tab === 'payment' ? '💳 Payment' : '📝 Notes'}
@@ -142,7 +142,7 @@ export default function RepairUpdateModal({ repair, onClose, onSaved }: RepairUp
                   className={`flex items-center gap-3 px-4 py-3 rounded border cursor-pointer transition-all ${
                     status === opt.value
                       ? opt.color + ' border-current shadow-sm'
-                      : 'border-slate-200 hover:bg-slate-50'
+                      : 'border-[var(--border-base)] hover:bg-[var(--bg-hover)]'
                   }`}
                 >
                   <input
@@ -151,11 +151,11 @@ export default function RepairUpdateModal({ repair, onClose, onSaved }: RepairUp
                     value={opt.value}
                     checked={status === opt.value}
                     onChange={() => setStatus(opt.value)}
-                    className="accent-blue-600"
+                    className="accent-[var(--brand-primary)]"
                   />
                   <span className="font-bold text-sm">{opt.label}</span>
                   {repair.status === opt.value && (
-                    <span className="ml-auto text-[10px] text-slate-400 font-bold">CURRENT</span>
+                    <span className="ml-auto text-[10px] text-[var(--text-muted-more)] font-bold">CURRENT</span>
                   )}
                 </label>
               ))}
@@ -165,27 +165,27 @@ export default function RepairUpdateModal({ repair, onClose, onSaved }: RepairUp
           {/* PAYMENT TAB */}
           {activeTab === 'payment' && (
             <div className="space-y-4">
-              <div className="bg-red-50 border border-red-100 rounded p-4 text-center">
-                <div className="text-xs text-red-400 uppercase font-bold tracking-wider">Remaining Balance</div>
-                <div className="text-3xl font-black text-red-600 mt-1">€{remaining.toFixed(2)}</div>
+              <div className="bg-[var(--brand-danger)]/10 border border-[var(--brand-danger)]/20 rounded p-4 text-center">
+                <div className="text-xs text-[var(--brand-danger)] uppercase font-bold tracking-wider">Remaining Balance</div>
+                <div className="text-3xl font-black text-[var(--brand-danger)] mt-1">€{remaining.toFixed(2)}</div>
               </div>
 
               {remaining <= 0 ? (
-                <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 border border-emerald-100 rounded p-4">
+                <div className="flex items-center gap-2 text-[var(--brand-success)] bg-[var(--brand-success)]/10 border border-[var(--brand-success)]/20 rounded p-4">
                   <CheckCircle size={18} />
                   <span className="text-sm font-bold">This job is fully paid.</span>
                 </div>
               ) : (
                 <>
                   <div className="flex items-center">
-                    <label className="w-1/3 text-sm font-bold text-slate-700">Amount to Collect</label>
+                    <label className="w-1/3 text-sm font-bold text-[var(--text-main)]">Amount to Collect</label>
                     <div className="w-2/3 relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">€</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted-more)] text-sm">€</span>
                       <input
                         type="number"
                         step="0.01"
                         max={remaining}
-                        className="w-full border border-[#ced4da] rounded pl-7 pr-3 py-1.5 text-sm focus:border-[#80bdff] focus:outline-none focus:ring-4 focus:ring-blue-500/10"
+                        className="w-full border border-[var(--border-input)] rounded pl-7 pr-3 py-1.5 text-sm focus:border-[var(--brand-primary)] focus:outline-none focus:ring-4 focus:ring-[var(--brand-primary)]/10"
                         placeholder={`Max €${remaining.toFixed(2)}`}
                         value={collectedAmount}
                         onChange={e => setCollectedAmount(e.target.value)}
@@ -193,9 +193,9 @@ export default function RepairUpdateModal({ repair, onClose, onSaved }: RepairUp
                     </div>
                   </div>
                   <div className="flex items-center">
-                    <label className="w-1/3 text-sm font-bold text-slate-700">Payment Method</label>
+                    <label className="w-1/3 text-sm font-bold text-[var(--text-main)]">Payment Method</label>
                     <select
-                      className="w-2/3 border border-[#ced4da] rounded px-3 py-1.5 text-sm focus:border-[#80bdff] focus:outline-none"
+                      className="w-2/3 border border-[var(--border-input)] rounded px-3 py-1.5 text-sm focus:border-[var(--brand-primary)] focus:outline-none"
                       value={collectedMethod}
                       onChange={e => setCollectedMethod(e.target.value)}
                     >
@@ -207,11 +207,11 @@ export default function RepairUpdateModal({ repair, onClose, onSaved }: RepairUp
                   </div>
                   <button
                     onClick={() => setCollectedAmount(String(remaining))}
-                    className="w-full text-center text-xs text-blue-600 hover:underline"
+                    className="w-full text-center text-xs text-[var(--brand-primary)] hover:underline"
                   >
                     Collect full balance (€{remaining.toFixed(2)})
                   </button>
-                  <div className="bg-blue-50 border border-blue-100 rounded px-4 py-3 text-[11px] text-blue-600 flex items-start gap-2">
+                  <div className="bg-[var(--brand-primary)]/10 border border-[var(--brand-primary)]/20 rounded px-4 py-3 text-[11px] text-[var(--brand-primary)] flex items-start gap-2">
                     <FileText size={14} className="shrink-0 mt-0.5" />
                     <span>A repair invoice <strong>RE-{String(repair.id).padStart(5, '0')}</strong> will be automatically created and saved when payment is collected.</span>
                   </div>
@@ -225,22 +225,22 @@ export default function RepairUpdateModal({ repair, onClose, onSaved }: RepairUp
             <div className="space-y-4">
               {repair.notes && (
                 <div>
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Previous Notes</p>
-                  <div className="bg-slate-50 border border-slate-200 rounded px-3 py-3 text-xs text-slate-600 whitespace-pre-wrap leading-relaxed max-h-40 overflow-auto font-mono">
+                  <p className="text-[11px] font-bold text-[var(--text-muted-more)] uppercase tracking-wider mb-2">Previous Notes</p>
+                  <div className="bg-[var(--bg-hover)] border border-[var(--border-base)] rounded px-3 py-3 text-xs text-[var(--text-muted)] whitespace-pre-wrap leading-relaxed max-h-40 overflow-auto font-mono">
                     {repair.notes}
                   </div>
                 </div>
               )}
               <div>
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Add New Note</p>
+                <p className="text-[11px] font-bold text-[var(--text-muted-more)] uppercase tracking-wider mb-2">Add New Note</p>
                 <textarea
                   rows={5}
-                  className="w-full border border-[#ced4da] rounded px-3 py-2 text-sm focus:border-[#80bdff] focus:outline-none focus:ring-4 focus:ring-blue-500/10 resize-none"
+                  className="w-full border border-[var(--border-input)] rounded px-3 py-2 text-sm focus:border-[var(--brand-primary)] focus:outline-none focus:ring-4 focus:ring-[var(--brand-primary)]/10 resize-none"
                   placeholder="Add a note about this repair job (e.g. parts ordered, customer called, etc.)..."
                   value={notes}
                   onChange={e => setNotes(e.target.value)}
                 />
-                <p className="text-[10px] text-slate-400 mt-1">Notes are saved with a timestamp and cannot be deleted.</p>
+                <p className="text-[10px] text-[var(--text-muted-more)] mt-1">Notes are saved with a timestamp and cannot be deleted.</p>
               </div>
             </div>
           )}
@@ -250,13 +250,13 @@ export default function RepairUpdateModal({ repair, onClose, onSaved }: RepairUp
         {(success || error) && (
           <div className="px-6 pb-2 shrink-0">
             {success && (
-              <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded px-3 py-2 text-sm text-emerald-700 font-medium">
+              <div className="flex items-center gap-2 bg-[var(--brand-success)]/10 border border-[var(--brand-success)]/20 rounded px-3 py-2 text-sm text-[var(--brand-success)] font-medium">
                 <CheckCircle size={16} />
                 {success}
               </div>
             )}
             {error && (
-              <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded px-3 py-2 text-sm text-red-600 font-medium">
+              <div className="flex items-center gap-2 bg-[var(--brand-danger)]/10 border border-[var(--brand-danger)]/20 rounded px-3 py-2 text-sm text-[var(--brand-danger)] font-medium">
                 <AlertCircle size={16} />
                 {error}
               </div>
@@ -265,11 +265,11 @@ export default function RepairUpdateModal({ repair, onClose, onSaved }: RepairUp
         )}
 
         {/* Footer */}
-        <div className="px-4 py-3 border-t border-slate-200 flex justify-end gap-2 bg-[#f8f9fa] shrink-0">
+        <div className="px-4 py-3 border-t border-[var(--border-base)] flex justify-end gap-2 bg-[var(--bg-zebra)] shrink-0">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-1.5 bg-white border border-slate-300 rounded text-slate-700 hover:bg-slate-50 text-sm font-medium transition-colors"
+            className="px-4 py-1.5 bg-[var(--bg-card)] border border-[var(--border-header)] rounded text-[var(--text-main)] hover:bg-[var(--bg-hover)] text-sm font-medium transition-colors"
           >
             Cancel
           </button>
@@ -277,7 +277,7 @@ export default function RepairUpdateModal({ repair, onClose, onSaved }: RepairUp
             type="button"
             onClick={handleSave}
             disabled={loading || !!success}
-            className="px-6 py-1.5 bg-[#007bff] hover:bg-[#0069d9] text-white rounded text-sm font-bold transition-colors disabled:opacity-50"
+            className="px-6 py-1.5 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white rounded text-sm font-bold transition-colors disabled:opacity-50"
           >
             {loading ? 'Saving...' : 'Save Update'}
           </button>

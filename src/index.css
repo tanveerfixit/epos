@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  --font-sans: "Inter", sans-serif;
 
   --shadow-soft: 0 10px 30px -5px rgba(0, 0, 0, 0.05), 0 4px 12px -3px rgba(0, 0, 0, 0.03);
   --shadow-strong: 0 20px 50px -12px rgba(0, 0, 0, 0.1);
@@ -16,33 +16,93 @@
   }
 }
 
+/* 
+  LOGIC: Apostolic Global Color Architecture
+  -----------------------------------------
+  Strict Preservation: Existing brand hex values are mapped to functional variables.
+  Transition Logic: Surface levels shift from elevation-based brightness (light) 
+  to depth-based darkness (dark). Accents and brand colors maintain consistent 
+  identity across both modes to ensure visual 'feel' remains intact.
+*/
+
 :root {
-  --bg-app: #f4f7f9;
-  --bg-header: #E7E9EB;
-  --bg-sidebar: #2c3e50;
-  --bg-card: #ffffff;
-  --bg-hover: #f1f5f9;
-  --text-main: #0f172a;
-  --text-muted: #64748b;
-  --text-muted-more: #94a3b8;
-  --border-base: #e2e8f0;
-  --header-border: #cbd5e1;
+  /* --- Surfaces & Brand Foundation --- */
+  --bg-app: #f4f7f9;           /* Global background behind all cards and content */
+  --bg-surface-secondary: #E7E9EB; /* Structural surface for non-content areas (headers, bars) */
+  --bg-sidebar: #2c3e50;       /* High-contrast brand navigation container */
+  --bg-card: #ffffff;          /* Primary elevated surface for interactive content */
+  --bg-hover: #f1f5f9;         /* Dynamic hover feedback for ghost buttons and list items */
+  --bg-zebra: #f8f9fa;         /* Subtle alternating surface for tabular data readability */
+  --bg-accent-subtle: #e9ecef; /* Non-interactive structural surface (e.g. table headers) */
+  --bg-input: #ffffff;         /* Base surface for user text entry fields */
+
+  /* --- Text & Typography --- */
+  --text-main: #0f172a;        /* High-contrast primary reading hierarchy */
+  --text-muted: #64748b;       /* Secondary descriptive or secondary label text */
+  --text-muted-more: #94a3b8;  /* Auxiliary meta-data or placeholder text */
+  --text-on-dark: #ffffff;     /* Forced contrast text for use on brand/dark backgrounds */
+  --text-on-accent: #ffffff;   /* Contrast text for action buttons and status badges */
+  --text-danger: #cc0000;      /* Specific text color for critical error messaging */
+  --text-neutral-dark: #333333; /* Legacy neutral dark text for hardware/report states */
+
+  /* --- Borders & Dividers --- */
+  --border-base: #e2e8f0;      /* Standard hairline divider for list separation */
+  --border-header: #cbd5e1;    /* Structural dividing line for main layout segments */
+  --border-input: #ced4da;     /* Form control boundary for input clarity */
+  --border-focus: #80bdff;     /* Active focus ring outline for accessibility */
+  --border-dashed: #000000;    /* Legacy dashed border for thermal receipt simulation */
+
+  /* --- Accents & Actions (Brand Parity) --- */
+  --brand-primary: #3498db;    /* Primary brand action color (Buttons, Active Icons) */
+  --brand-primary-hover: #2980b9; /* Deepened interaction state for primary actions */
+  --brand-danger: #e74c3c;     /* Universal critical system feedback / Delete actions */
+  --brand-success: #27ae60;    /* Positive system feedback / Approval states */
+  --brand-warning: #f1c40f;    /* Cautionary system feedback / Pending states */
+  --brand-warning-hover: #f39c12; /* Interaction state for cautionary actions */
+  --brand-accent: #00e5ff;     /* Vibrant cyan supplement for secondary features */
+  --brand-accent-hover: #00d4eb;  /* Interaction state for cyan accents */
+  --brand-success-bright: #00c853; /* Success state for specific hardware/status logic */
 }
 
 .dark {
-  --bg-app: #020617;
-  --bg-header: #0f172a;
-  --bg-sidebar: #020617;
-  --bg-card: #1e293b;
-  --bg-hover: #334155;
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
-  --text-muted-more: #64748b;
-  --border-base: #334155;
-  --header-border: #1e293b;
+  /* --- Surfaces & Brand Foundation --- */
+  --bg-app: #020617;           /* Deep background for reduced eye strain in low light */
+  --bg-surface-secondary: #0f172a; /* Secondary deep surface for structural bars */
+  --bg-sidebar: #020617;       /* Unified deep navigation container */
+  --bg-card: #1e293b;          /* Raised surface for content cards in dark mode */
+  --bg-hover: #334155;         /* Highlight feedback on dark surfaces */
+  --bg-zebra: #1e293b;         /* Low-contrast alternating list surface */
+  --bg-accent-subtle: #0f172a; /* Deep structural accent for headers/segments */
+  --bg-input: #0f172a;         /* Deep background for form fields */
+
+  /* --- Text & Typography --- */
+  --text-main: #f8fafc;        /* High-readability light text for dark backgrounds */
+  --text-muted: #94a3b8;       /* Muted descriptive text for dark mode */
+  --text-muted-more: #64748b;  /* Auxiliary meta-data on dark surfaces */
+  --text-danger: #ff6b6b;      /* Adjusted danger text for dark mode visibility */
+  --text-neutral-dark: #cbd5e1; /* Inverted neutral text for dark mode */
+
+  /* --- Borders & Dividers --- */
+  --border-base: #334155;      /* Muted dark divider for list items */
+  --border-header: #1e293b;    /* Structural dark dividing line */
+  --border-input: #475569;     /* Deep form boundary for dark inputs */
+  --border-focus: #3498db;     /* High-contrast focus state for dark mode */
+  --border-dashed: #475569;    /* Dark mode equivalent for dashed separators */
+
+  /* Accents (Fixed for Brand Consistency) */
+  --brand-primary: #3498db;
+  --brand-primary-hover: #2980b9;
+  --brand-danger: #e74c3c;
+  --brand-success: #27ae60;
+  --brand-warning: #f1c40f;
+  --brand-warning-hover: #f39c12;
+  --brand-accent: #00e5ff;
+  --brand-accent-hover: #00d4eb;
+  --brand-success-bright: #00c853;
 }
 
 body {
+  font-family: var(--font-sans);
   background-color: var(--bg-app);
   color: var(--text-main);
   @apply antialiased selection:bg-blue-100 selection:text-blue-900;
@@ -66,7 +126,40 @@ body {
   background-color: var(--text-muted);
 }
 
-/* Modern inputs override */
 input:focus {
   @apply ring-4 ring-blue-500/10 border-blue-500/50 outline-none;
+}
+
+/* Custom Animations */
+@keyframes pulse-subtle {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.01); opacity: 0.98; }
+}
+
+@keyframes bounce-short {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+@keyframes shine {
+  from { left: -100%; }
+  to { left: 100%; }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s infinite ease-in-out;
+}
+
+.animate-bounce-short {
+  animation: bounce-short 1s infinite ease-in-out;
+}
+
+.animate-shine {
+  position: absolute;
+  top: 0;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(to right, transparent, rgba(255,255,255,0.3), transparent);
+  animation: shine 1.5s infinite linear;
+  transform: skewX(-20deg);
 }

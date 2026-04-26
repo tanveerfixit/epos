@@ -38,6 +38,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import CreateProduct from './components/CreateProduct';
 import ProductDetails from './components/ProductDetails';
 import AddInventory from './components/AddInventory';
+import DeviceDetailView from './components/inventory/DeviceDetails';
 import GettingStarted from './components/GettingStarted';
 import BranchTransfer from './components/BranchTransfer';
 import AdminPortal from './components/admin/AdminPortal';
@@ -48,7 +49,7 @@ import ResetPassword from './components/auth/ResetPassword';
 import AdminLoginPage from './components/auth/AdminLoginPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
-type View = 'home' | 'dashboard' | 'register' | 'repairs' | 'invoices' | 'invoice-details' | 'customers' | 'customer-details' | 'products' | 'devices' | 'sku-device-details' | 'create-product' | 'product-details' | 'add-inventory' | 'purchase-orders' | 'purchase-order-detail' | 'manage-data' | 'end-of-day' | 'getting-started' | 'transfers';
+type View = 'home' | 'dashboard' | 'register' | 'repairs' | 'invoices' | 'invoice-details' | 'customers' | 'customer-details' | 'products' | 'devices' | 'device-details' | 'sku-device-details' | 'create-product' | 'product-details' | 'add-inventory' | 'purchase-orders' | 'purchase-order-detail' | 'manage-data' | 'end-of-day' | 'getting-started' | 'transfers';
 type AuthView = 'login' | 'signup' | 'forgot' | 'reset' | 'admin-login';
 
 function AppInner() {
@@ -57,11 +58,13 @@ function AppInner() {
   const [resetToken, setResetToken] = useState<string | null>(null);
   const [showAdminPortal, setShowAdminPortal] = useState(false);
   const [currentView, setCurrentView] = useState<View>('home');
+  const [selectedDeviceId, setSelectedDeviceId] = useState<number | null>(null);
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(null);
   const [selectedPoId, setSelectedPoId] = useState<number | null>(null);
   const [selectedPoNumber, setSelectedPoNumber] = useState<string | null>(null);
+  const [gettingStartedTab, setGettingStartedTab] = useState<string | undefined>(undefined);
   const [previousView, setPreviousView] = useState<View | null>(null);
   const [initiateDeposit, setInitiateDeposit] = useState(false);
 
@@ -89,9 +92,9 @@ function AppInner() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#f8fafc] flex flex-col items-center justify-center p-6">
-        <div className="w-16 h-16 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin mb-4" />
-        <div className="text-slate-500 font-bold text-sm tracking-widest uppercase animate-pulse">Initializing System...</div>
+      <div className="min-h-screen bg-[var(--bg-app)] flex flex-col items-center justify-center p-6">
+        <div className="w-16 h-16 border-4 border-[var(--border-base)] border-t-[var(--brand-primary)] rounded-full animate-spin mb-4" />
+        <div className="text-[var(--text-muted)] font-bold text-sm tracking-widest uppercase animate-pulse">Initializing System...</div>
       </div>
     );
   }
@@ -116,6 +119,7 @@ function AppInner() {
     setSelectedProductId(null);
     setSelectedInvoiceId(null);
     setSelectedPoId(null);
+    setSelectedDeviceId(null);
     setInitiateDeposit(false);
     setCurrentView(view);
   };
@@ -144,6 +148,10 @@ function AppInner() {
           onSelectCustomer={(id) => {
             setSelectedCustomerId(id);
             setCurrentView('customer-details');
+          }}
+          onSelectProduct={(id) => {
+            setSelectedProductId(id);
+            setCurrentView('product-details');
           }}
         />
       );
@@ -246,6 +254,20 @@ function AppInner() {
             setSelectedProductId(skuId);
             setCurrentView('sku-device-details');
           }}
+          onSelectDevice={(id) => {
+            setSelectedDeviceId(id);
+            setCurrentView('device-details');
+          }}
+        />
+      );
+      case 'device-details': return (
+        <DeviceDetailView 
+          deviceId={selectedDeviceId!} 
+          onBack={() => setCurrentView('devices')} 
+          onOpenPrinterSettings={() => {
+            setGettingStartedTab('manage-label-printer');
+            setCurrentView('getting-started');
+          }}
         />
       );
       case 'sku-device-details': return (
@@ -270,7 +292,7 @@ function AppInner() {
       );
       case 'manage-data': return <ManageData />;
       case 'end-of-day': return <EndOfDay />;
-      case 'getting-started': return <GettingStarted />;
+      case 'getting-started': return <GettingStarted initialTab={gettingStartedTab} />;
       case 'transfers': return <BranchTransfer />;
       default: return <Dashboard />;
     }
@@ -281,7 +303,7 @@ function AppInner() {
       {showAdminPortal && isAdmin && <AdminPortal onClose={() => setShowAdminPortal(false)} />}
 
       {/* Header */}
-      <header className="h-16 bg-[var(--bg-header)] flex items-center justify-between z-30 transition-colors duration-300">
+      <header className="h-14 bg-[var(--bg-header)] flex items-center justify-between z-30 transition-colors duration-300">
         <div className="flex h-full items-center">
           <div className="w-28 flex items-center justify-center h-full">
             <button 
@@ -293,7 +315,7 @@ function AppInner() {
           </div>
           
           <div className="pl-6 flex flex-col items-start font-sans">
-            <h1 className="text-lg font-black text-[var(--text-main)] tracking-tighter leading-none">PHONE LAB</h1>
+            <h1 className="text-lg font-bold text-[var(--text-main)] tracking-tight leading-none">PHONE LAB</h1>
           </div>
         </div>
 
@@ -360,12 +382,12 @@ function AppInner() {
                 onClick={() => handleSidebarNavigate(item.id as View)}
                 className={`w-full flex flex-col items-center justify-center py-5 px-1 transition-all duration-200 border-l-4 ${
                   currentView === item.id 
-                    ? 'bg-white/10 border-blue-500 text-white' 
-                    : 'border-transparent text-slate-400 hover:bg-white/5 hover:text-white'
+                    ? 'bg-white/10 border-[var(--brand-primary)] text-white' 
+                    : 'border-transparent text-[var(--text-muted-more)] hover:bg-white/5 hover:text-white'
                 }`}
               >
                 <item.icon size={24} />
-                <span className="text-[11px] mt-2 text-center font-bold leading-tight uppercase tracking-wide">{item.label}</span>
+                <span className="text-[11px] mt-2 text-center font-normal leading-tight uppercase tracking-wide">{item.label}</span>
               </button>
             ))}
           </nav>

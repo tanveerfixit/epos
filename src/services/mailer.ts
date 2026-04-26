@@ -34,7 +34,7 @@ async function sendMail(to: string, subject: string, html: string) {
   await transporter.sendMail({ from, to, subject, html });
 }
 
-const baseStyle = `font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#f9fafb;padding:32px;border-radius:8px;`;
+const baseStyle = `font-family:'Inter',sans-serif;max-width:600px;margin:0 auto;background:#f9fafb;padding:32px;border-radius:8px;`;
 const btnStyle = `display:inline-block;background:#2980b9;color:#ffffff;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:bold;margin-top:16px;`;
 
 export async function sendAccountPending(user: { name: string; email: string }) {

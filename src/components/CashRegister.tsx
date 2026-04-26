@@ -15,6 +15,7 @@ import { Sidebar } from './cash-register/Sidebar';
 import { ReviewCheckoutModal } from './cash-register/ReviewCheckoutModal';
 import { ImeiSelectorModal } from './cash-register/ImeiSelectorModal';
 import { DepositAmountModal } from './cash-register/DepositAmountModal';
+import { UpdateCartModal } from './cash-register/UpdateCartModal';
 import CustomerFormModal from './CustomerFormModal';
 import { CartItem, PaymentEntry, Activity } from './cash-register/types';
 import { useThermalSettings } from '../hooks/useThermalSettings';
@@ -24,24 +25,38 @@ interface CashRegisterProps {
   onSelectCustomer?: (id: number) => void;
   preSelectedCustomerId?: number | null;
   initiateDeposit?: boolean;
+  onSelectProduct?: (id: number) => void;
 }
 
-export default function CashRegister({ onViewCustomers, onSelectCustomer, preSelectedCustomerId, initiateDeposit }: CashRegisterProps) {
+export default function CashRegister({ onViewCustomers, onSelectCustomer, preSelectedCustomerId, initiateDeposit, onSelectProduct }: CashRegisterProps) {
   // State
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Product[]>([]);
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    const saved = localStorage.getItem('epos_cart');
+    try { return saved ? JSON.parse(saved) : []; } catch { return []; }
+  });
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(() => {
+    const saved = localStorage.getItem('epos_customer');
+    try { return saved ? JSON.parse(saved) : null; } catch { return null; }
+  });
   const [customerSearch, setCustomerSearch] = useState('');
   const [customerResults, setCustomerResults] = useState<Customer[]>([]);
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [paymentAmount, setPaymentAmount] = useState('');
   const [availableMethods, setAvailableMethods] = useState<string[]>(['Cash', 'Card']);
-  const [addedPayments, setAddedPayments] = useState<PaymentEntry[]>([]);
+  const [addedPayments, setAddedPayments] = useState<PaymentEntry[]>(() => {
+    const saved = localStorage.getItem('epos_payments');
+    try { return saved ? JSON.parse(saved) : []; } catch { return []; }
+  });
   const [showReviewModal, setShowReviewModal] = useState(false);
+  const [isFinalizing, setIsFinalizing] = useState(false);
   const [lastInvoiceData, setLastInvoiceData] = useState<any>(null);
   const [printType, setPrintType] = useState<'Thermal' | 'A4'>('Thermal');
-  const [activities, setActivities] = useState<Activity[]>([]);
+  const [activities, setActivities] = useState<Activity[]>(() => {
+    const saved = localStorage.getItem('epos_activities');
+    try { return saved ? JSON.parse(saved) : []; } catch { return []; }
+  });
   
   // New Customer Modal State
   const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
@@ -55,9 +70,31 @@ export default function CashRegister({ onViewCustomers, onSelectCustomer, preSel
   const [isLoadingImeis, setIsLoadingImeis] = useState(false);
   const { settings, company } = useThermalSettings();
 
+  // Update Cart Modal State
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [editingItem, setEditingItem] = useState<CartItem | null>(null);
+
   // Deposit State
   const [showDepositModal, setShowDepositModal] = useState(false);
+
   const [depositProductInfo, setDepositProductInfo] = useState<any>(null);
+
+  // Persistence Effects
+  useEffect(() => {
+    localStorage.setItem('epos_cart', JSON.stringify(cart));
+  }, [cart]);
+
+  useEffect(() => {
+    localStorage.setItem('epos_customer', JSON.stringify(selectedCustomer));
+  }, [selectedCustomer]);
+
+  useEffect(() => {
+    localStorage.setItem('epos_payments', JSON.stringify(addedPayments));
+  }, [addedPayments]);
+
+  useEffect(() => {
+    localStorage.setItem('epos_activities', JSON.stringify(activities));
+  }, [activities]);
 
   // Effects
   useEffect(() => {
@@ -239,6 +276,40 @@ export default function CashRegister({ onViewCustomers, onSelectCustomer, preSel
     });
   };
 
+  const handleEditItem = (item: CartItem) => {
+    setEditingItem(item);
+    setShowUpdateModal(true);
+  };
+
+  const handleUpdateCartItem = (updatedFields: Partial<CartItem>) => {
+    if (!editingItem) return;
+
+    setCart(prevCart => {
+      return prevCart.map(item => {
+        if (item.id === editingItem.id && (!editingItem.device_id || item.device_id === editingItem.device_id)) {
+          const updatedItem = { ...item, ...updatedFields };
+          
+          // Log activity for significant changes
+          if (updatedFields.quantity && updatedFields.quantity !== item.quantity) {
+            addActivity('Quantity Updated', `${item.product_name}: ${item.quantity} → ${updatedFields.quantity}`, 'stock');
+          }
+          if (updatedFields.customPrice && updatedFields.customPrice !== (item.customPrice ?? item.selling_price)) {
+            addActivity('Price Updated', `${item.product_name}: €${(item.customPrice ?? item.selling_price).toFixed(2)} → €${updatedFields.customPrice.toFixed(2)}`, 'sale');
+          }
+          if (updatedFields.discount !== undefined) {
+            addActivity('Discount Applied', `${item.product_name}: ${updatedFields.discount}${updatedFields.discountType === 'percentage' ? '%' : '€'} discount`, 'sale');
+          }
+
+          return updatedItem;
+        }
+        return item;
+      });
+    });
+
+    setShowUpdateModal(false);
+    setEditingItem(null);
+  };
+
   const removeFromCart = (productId: number, deviceId?: number) => {
     const itemToRemove = cart.find(item => item.id === productId && (!deviceId || item.device_id === deviceId));
     setCart(prevCart => prevCart.filter(item => !(item.id === productId && (!deviceId || item.device_id === deviceId))));
@@ -348,19 +419,34 @@ export default function CashRegister({ onViewCustomers, onSelectCustomer, preSel
       tax_total: 0,
       discount_total: 0,
       grand_total: total,
-      items: cart.map(item => ({
-        sku_id: item.id,
-        device_id: item.device_id,
-        imei: item.imei,
-        quantity: item.quantity,
-        price: item.customPrice ?? item.selling_price,
-        total: (item.customPrice ?? item.selling_price) * item.quantity,
-        is_deposit: item.is_deposit || false
-      })),
+      items: cart.map(item => {
+        const itemPrice = item.customPrice ?? item.selling_price;
+        let itemTotal = itemPrice * item.quantity;
+        if (item.discount) {
+          if (item.discountType === 'percentage') {
+            itemTotal = itemTotal * (1 - item.discount / 100);
+          } else {
+            itemTotal = itemTotal - item.discount;
+          }
+        }
+        return {
+          sku_id: item.id,
+          device_id: item.device_id,
+          imei: item.imei,
+          quantity: item.quantity,
+          price: itemPrice,
+          discount: item.discount || 0,
+          discount_type: item.discountType || 'percentage',
+          total: Math.max(0, itemTotal),
+          is_deposit: item.is_deposit || false,
+          notes: item.notes || ''
+        };
+      }),
       payments: addedPayments,
       activities: activities
     };
 
+    setIsFinalizing(true);
     try {
       const response = await fetch('/api/invoices', {
         method: 'POST',
@@ -369,10 +455,7 @@ export default function CashRegister({ onViewCustomers, onSelectCustomer, preSel
       });
 
       if (response.ok) {
-        const result = await response.json();
-        // Fetch full invoice details for printing
-        const fullInvoiceRes = await fetch(`/api/invoices/${result.id}`);
-        const fullInvoice = await fullInvoiceRes.json();
+        const fullInvoice = await response.json();
         
         setLastInvoiceData(fullInvoice);
         setShowReviewModal(false);
@@ -387,10 +470,15 @@ export default function CashRegister({ onViewCustomers, onSelectCustomer, preSel
         } else {
           resetRegister();
         }
+      } else {
+        const err = await response.json();
+        alert('Checkout failed: ' + (err.error || 'Server error'));
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Checkout error:', error);
-      alert('Checkout failed: ' + error);
+      alert('Checkout failed: ' + (error.message || error));
+    } finally {
+      setIsFinalizing(false);
     }
   };
 
@@ -404,6 +492,12 @@ export default function CashRegister({ onViewCustomers, onSelectCustomer, preSel
     setSearchQuery('');
     setCustomerSearch('');
     setActivities([]); // Reset activities for the new invoice
+    
+    // Clear persistence
+    localStorage.removeItem('epos_cart');
+    localStorage.removeItem('epos_customer');
+    localStorage.removeItem('epos_payments');
+    localStorage.removeItem('epos_activities');
   };
 
   const handlePrint = (type: 'Thermal' | 'A4') => {
@@ -415,7 +509,18 @@ export default function CashRegister({ onViewCustomers, onSelectCustomer, preSel
 
   // Calculations
   const subtotal = cart.reduce((sum, item) => sum + (item.customPrice ?? item.selling_price) * item.quantity, 0);
-  const total = subtotal; // Simplified for now
+  
+  const discountTotal = cart.reduce((sum, item) => {
+    if (!item.discount) return sum;
+    const itemSubtotal = (item.customPrice ?? item.selling_price) * item.quantity;
+    if (item.discountType === 'percentage') {
+      return sum + (itemSubtotal * (item.discount / 100));
+    } else {
+      return sum + item.discount;
+    }
+  }, 0);
+
+  const total = Math.max(0, subtotal - discountTotal);
   const paidAmount = addedPayments.reduce((sum, p) => sum + p.amount, 0);
   const remainingAmount = total - paidAmount;
   const isPaymentComplete = remainingAmount <= 0.01;
@@ -434,7 +539,7 @@ export default function CashRegister({ onViewCustomers, onSelectCustomer, preSel
       <div className="bg-[var(--bg-card)] px-6 py-4 flex justify-between items-center shrink-0">
         <div className="flex items-center gap-3">
           <div>
-            <h1 className="text-xl font-black text-[var(--text-main)] tracking-tight uppercase">Register</h1>
+            <h1 className="text-xl font-normal text-[var(--text-main)] uppercase tracking-wide">Register</h1>
           </div>
         </div>
       </div>
@@ -460,7 +565,7 @@ export default function CashRegister({ onViewCustomers, onSelectCustomer, preSel
           </div>
 
           {/* Scrollable Content Area */}
-          <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-4">
+          <div className="flex-1 overflow-y-auto custom-scrollbar space-y-4">
             {/* Cart Table */}
             <CartTable 
               cart={cart}
@@ -468,6 +573,8 @@ export default function CashRegister({ onViewCustomers, onSelectCustomer, preSel
               onUpdatePrice={updatePrice}
               onRemove={removeFromCart}
               onOpenImeiSelector={handleOpenImeiSelector}
+              onEdit={handleEditItem}
+              onSelectProduct={onSelectProduct}
             />
 
             {/* Activity Log */}
@@ -493,7 +600,7 @@ export default function CashRegister({ onViewCustomers, onSelectCustomer, preSel
           
           subtotal={subtotal}
           tax={0}
-          discount={0}
+          discount={discountTotal}
           total={total}
           
           addedPayments={addedPayments}
@@ -515,11 +622,11 @@ export default function CashRegister({ onViewCustomers, onSelectCustomer, preSel
 
       {/* Modals */}
       {showDiscardConfirm && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4 animate-in fade-in duration-200">
           <div className="bg-[var(--bg-card)] rounded-md shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-300 border border-[var(--border-base)]">
             <div className="p-6 text-center">
-              <div className="w-16 h-16 bg-red-50 dark:bg-red-950/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <XCircle size={32} className="text-red-500" />
+              <div className="w-16 h-16 bg-[var(--bg-hover)] rounded-full flex items-center justify-center mx-auto mb-4">
+                <XCircle size={32} className="text-[var(--brand-danger)]" />
               </div>
               <h3 className="text-xl font-black text-[var(--text-main)] mb-2 uppercase tracking-tight">Discard Sale?</h3>
               <p className="text-[var(--text-muted)] text-sm mb-6">Are you sure you want to clear the current cart and reset the transaction? This action cannot be undone.</p>
@@ -536,7 +643,7 @@ export default function CashRegister({ onViewCustomers, onSelectCustomer, preSel
                     addActivity('Cart Cleared', 'Transaction discarded and reset to default', 'system');
                     setShowDiscardConfirm(false);
                   }}
-                  className="flex-1 py-3 rounded-md font-bold text-white bg-red-600 hover:bg-red-700 transition-all shadow-lg shadow-red-100"
+                  className="flex-1 py-3 rounded-md font-bold text-white bg-[var(--brand-danger)] hover:bg-[var(--brand-danger-hover)] transition-all shadow-lg shadow-red-100"
                 >
                   Discard
                 </button>
@@ -550,6 +657,7 @@ export default function CashRegister({ onViewCustomers, onSelectCustomer, preSel
         <ReviewCheckoutModal 
           grandTotal={total}
           payments={addedPayments}
+          isFinalizing={isFinalizing}
           onCancel={() => setShowReviewModal(false)}
           onConfirm={handleFinalizeTransaction}
         />
@@ -584,6 +692,17 @@ export default function CashRegister({ onViewCustomers, onSelectCustomer, preSel
         <CustomerFormModal 
           onClose={() => setShowNewCustomerModal(false)}
           onSave={handleSaveNewCustomer}
+        />
+      )}
+
+      {showUpdateModal && editingItem && (
+        <UpdateCartModal 
+          item={editingItem}
+          onClose={() => {
+            setShowUpdateModal(false);
+            setEditingItem(null);
+          }}
+          onSave={handleUpdateCartItem}
         />
       )}
 

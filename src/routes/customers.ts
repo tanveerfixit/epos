@@ -50,7 +50,11 @@ router.post('/', async (req: any, res) => {
        n(b.company), n(b.customer_type), n(b.address_line1), n(b.address_line2),
        n(b.city), n(b.state), n(b.zip_code), n(b.country), n(b.website), n(b.alert_message)
       ]);
-    res.json({ id: r.insertId });
+    const [newCustomer] = await pool.execute(
+      'SELECT * FROM customers WHERE id = ?',
+      [r.insertId]
+    );
+    res.json((newCustomer as any[])[0]);
   } catch (e: any) {
     console.error('[POST /api/customers] Error:', e.message);
     res.status(500).json({ error: e.message });

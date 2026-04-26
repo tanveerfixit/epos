@@ -56,8 +56,12 @@ interface ThermalPrinterSettingsData {
   footer_text: string;
 }
 
-const GettingStarted: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('manage-thermal-printer');
+interface GettingStartedProps {
+  initialTab?: string;
+}
+
+const GettingStarted: React.FC<GettingStartedProps> = ({ initialTab }) => {
+  const [activeTab, setActiveTab] = useState(initialTab || 'manage-thermal-printer');
   const [settings, setSettings] = useState<SettingsData>({
     currency: '€, Euro',
     timezone: 'UTC/GMT +00:00 - Europe/London',
@@ -560,47 +564,78 @@ const GettingStarted: React.FC = () => {
               size: ${width} ${height};
               margin: 0;
             }
-            body {
+            html, body {
               margin: 0;
+              padding: 0;
+              width: ${width};
+              height: ${height};
+              overflow: hidden;
+              background: #fff;
+            }
+            body {
               padding: ${margin_top}px ${margin_right}px ${margin_bottom}px ${margin_left}px;
               font-family: ${font_family}, sans-serif;
               font-size: ${fontSizeMap[font_size] || '10pt'};
-              width: ${width};
-              height: ${height};
               box-sizing: border-box;
               display: flex;
               flex-direction: column;
               align-items: center;
               justify-content: center;
               text-align: center;
-              overflow: hidden;
+              page-break-after: avoid;
+              break-after: avoid;
             }
-            .label-border {
-              border: 1px solid black;
+            * {
+              -webkit-print-color-adjust: exact;
+              box-sizing: border-box;
+            }
+            .label-content {
               width: 100%;
               height: 100%;
               display: flex;
               flex-direction: column;
-              align-items: center;
-              justify-content: center;
+              justify-content: space-between;
+              padding: 0px;
+              color: #000;
             }
-            .barcode {
-              font-family: 'Libre Barcode 39', cursive;
-              font-size: 24pt;
-              margin-top: 2px;
+            .barcode-container {
+              width: 100%;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              overflow: hidden;
+            }
+            #barcode {
+              max-width: 100%;
+              height: auto;
             }
           </style>
-          <link href="https://fonts.googleapis.com/css2?family=Libre+Barcode+39&display=swap" rel="stylesheet">
+          <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
         </head>
         <body>
-          <div class="label-border">
-            <div>Cell-Store</div>
-            <div style="font-weight: bold;">iPhone-11</div>
-            <div>$250.00</div>
-            <div class="barcode">*1234567890*</div>
-            <div style="font-size: 6pt;">1234567890</div>
+          <div class="label-content">
+            <div style="font-weight: bold; font-size: 1.1em; text-transform: uppercase; line-height: 1.1;">Apple iPhone 14</div>
+            <div style="font-size: 0.9em; line-height: 1;">6GB 128GB</div>
+            <div style="flex-grow: 1; min-height: 2px;"></div>
+            <div class="barcode-container">
+              <svg id="barcode"></svg>
+            </div>
+            <div style="height: 2px;"></div>
+            <div style="font-size: 7.5pt; font-family: monospace; width: 100%; display: flex; justify-content: space-between; padding: 0 2px;">
+              <span>3</span><span>5</span><span>0</span><span>9</span><span>6</span><span>7</span><span>6</span><span>8</span><span>1</span><span>6</span><span>0</span><span>5</span><span>4</span><span>1</span><span>2</span>
+            </div>
           </div>
           <script>
+            try {
+              JsBarcode("#barcode", "350967681605412", {
+                format: "CODE128",
+                width: 2,
+                height: 50,
+                displayValue: false,
+                margin: 0
+              });
+            } catch (e) {}
+
             window.onload = () => {
               window.print();
               window.close();
@@ -1188,7 +1223,7 @@ const GettingStarted: React.FC = () => {
                   <label className="text-sm font-bold text-slate-700">Label Size</label>
                   <div className="md:col-span-2 space-y-3">
                     {[
-                      '2.25" (57mm) x 1.25" (32mm) Dymo 30334',
+                      '2.25" (57mm) x 1.25" (32mm) Dymo 11354 / 30334',
                       '2.12" (54mm) x 1" (25mm) Dymo 30336',
                       '2.4" (62mm) x 1.1" (28mm) Brother DK1209',
                       'Custom'

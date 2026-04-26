@@ -49,29 +49,29 @@ export default function SkuDeviceDetails({ skuId, onBack }: Props) {
   });
 
   return (
-    <div className="flex flex-col h-full bg-[#f4f7f9]">
+    <div className="flex flex-col h-full bg-[var(--bg-app)]">
       {/* Header */}
-      <div className="p-4 bg-white border-b border-slate-200 flex items-center gap-4">
+      <div className="p-4 bg-[var(--bg-card)] border-b border-[var(--border-base)] flex items-center gap-4">
         <button 
           onClick={onBack}
-          className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-600"
+          className="p-2 hover:bg-[var(--bg-hover)] rounded-full transition-colors text-[var(--text-muted)]"
         >
           <ArrowLeft size={20} />
         </button>
         <div>
-          <h2 className="text-xl font-medium text-slate-700">{productName}</h2>
-          <p className="text-xs text-slate-500 uppercase tracking-wider font-bold">Device History & Inventory</p>
+          <h2 className="text-xl font-medium text-[var(--text-main)]">{productName}</h2>
+          <p className="text-xs text-[var(--text-muted-more)] uppercase tracking-wider font-bold">Device History & Inventory</p>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="p-4 bg-white border-b border-slate-200 flex items-center gap-4">
+      <div className="p-4 bg-[var(--bg-card)] border-b border-[var(--border-base)] flex items-center gap-4">
         <div className="flex items-center gap-2">
-          <Filter size={16} className="text-slate-400" />
+          <Filter size={16} className="text-[var(--text-muted-more)]" />
           <select 
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-white border border-slate-300 rounded px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#3498db] w-48"
+            className="bg-[var(--bg-input)] border border-[var(--border-header)] rounded px-3 py-1.5 text-sm text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-primary)] w-48"
           >
             <option value="all">All Devices</option>
             <option value="in_stock">Available (In Stock)</option>
@@ -87,10 +87,10 @@ export default function SkuDeviceDetails({ skuId, onBack }: Props) {
             placeholder="Search IMEI in this list..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-3 pr-10 py-1.5 bg-white border border-slate-300 rounded-l text-sm focus:outline-none focus:ring-1 focus:ring-[#3498db]"
+            className="w-full pl-3 pr-10 py-1.5 bg-[var(--bg-input)] border border-[var(--border-header)] rounded-l text-sm focus:outline-none focus:ring-1 focus:ring-[var(--brand-primary)]"
           />
-          <button className="px-3 bg-slate-100 border border-l-0 border-slate-300 rounded-r hover:bg-slate-200">
-            <Search size={16} className="text-slate-600" />
+          <button className="px-3 bg-[var(--bg-accent-subtle)] border border-l-0 border-[var(--border-header)] rounded-r hover:bg-[var(--bg-hover)]">
+            <Search size={16} className="text-[var(--text-muted)]" />
           </button>
         </div>
       </div>
@@ -99,49 +99,49 @@ export default function SkuDeviceDetails({ skuId, onBack }: Props) {
       <div className="flex-1 overflow-auto p-4">
         {loading ? (
           <div className="flex items-center justify-center h-32">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3498db]"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--brand-primary)]"></div>
           </div>
         ) : (
-          <div className="bg-white border border-slate-300 rounded shadow-sm overflow-hidden">
+          <div className="bg-[var(--bg-card)] border border-[var(--border-header)] rounded shadow-sm overflow-hidden">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-[#e9ecef] border-b border-slate-300 text-[11px] font-bold text-slate-700 uppercase tracking-wider">
-                  <th className="px-4 py-3 border-r border-slate-300">IMEI Number</th>
-                  <th className="px-4 py-3 border-r border-slate-300 text-center">Color</th>
-                  <th className="px-4 py-3 border-r border-slate-300 text-center">GB</th>
-                  <th className="px-4 py-3 border-r border-slate-300 text-center">Condition</th>
-                  <th className="px-4 py-3 border-r border-slate-300 text-center">Status</th>
-                  <th className="px-4 py-3 border-r border-slate-300">Date Added</th>
+                <tr className="bg-[var(--bg-accent-subtle)] border-b border-[var(--border-header)] text-[11px] font-bold text-[var(--text-main)] uppercase tracking-wider">
+                  <th className="px-4 py-3 border-r border-[var(--border-header)]">IMEI Number</th>
+                  <th className="px-4 py-3 border-r border-[var(--border-header)] text-center">Color</th>
+                  <th className="px-4 py-3 border-r border-[var(--border-header)] text-center">GB</th>
+                  <th className="px-4 py-3 border-r border-[var(--border-header)] text-center">Condition</th>
+                  <th className="px-4 py-3 border-r border-[var(--border-header)] text-center">Status</th>
+                  <th className="px-4 py-3 border-r border-[var(--border-header)]">Date Added</th>
                   <th className="px-4 py-3 text-center">Invoice #</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredDevices.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-8 text-center text-slate-400 italic">
+                    <td colSpan={7} className="px-4 py-8 text-center text-[var(--text-muted-more)] italic">
                       No devices found matching the filter.
                     </td>
                   </tr>
                 ) : (
                   filteredDevices.map((device, idx) => (
-                    <tr key={device.id} className={`border-b border-slate-200 text-sm hover:bg-slate-50 transition-colors ${idx % 2 === 1 ? 'bg-[#f8f9fa]' : ''}`}>
-                      <td className="px-4 py-3 border-r border-slate-200 font-mono text-slate-700 font-bold">{device.imei}</td>
-                      <td className="px-4 py-3 border-r border-slate-200 text-center text-slate-600">{device.color || '-'}</td>
-                      <td className="px-4 py-3 border-r border-slate-200 text-center text-slate-600">{device.gb || '-'}</td>
-                      <td className="px-4 py-3 border-r border-slate-200 text-center text-slate-600">{device.condition || '-'}</td>
-                      <td className="px-4 py-3 border-r border-slate-200 text-center">
+                    <tr key={device.id} className={`border-b border-[var(--border-base)] text-sm hover:bg-[var(--bg-hover)] transition-colors ${idx % 2 === 1 ? 'bg-[var(--bg-zebra)]' : ''}`}>
+                      <td className="px-4 py-3 border-r border-[var(--border-base)] font-mono text-[var(--text-main)] font-bold">{device.imei}</td>
+                      <td className="px-4 py-3 border-r border-[var(--border-base)] text-center text-[var(--text-muted)]">{device.color || '-'}</td>
+                      <td className="px-4 py-3 border-r border-[var(--border-base)] text-center text-[var(--text-muted)]">{device.gb || '-'}</td>
+                      <td className="px-4 py-3 border-r border-[var(--border-base)] text-center text-[var(--text-muted)]">{device.condition || '-'}</td>
+                      <td className="px-4 py-3 border-r border-[var(--border-base)] text-center">
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                          device.status === 'in_stock' ? 'bg-green-100 text-green-700' :
-                          device.status === 'sold' ? 'bg-blue-100 text-blue-700' :
-                          'bg-amber-100 text-amber-700'
+                          device.status === 'in_stock' ? 'bg-[var(--brand-success)]/10 text-[var(--brand-success)]' :
+                          device.status === 'sold' ? 'bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]' :
+                          'bg-[var(--brand-warning)]/10 text-[var(--brand-warning)]'
                         }`}>
                           {device.status.replace('_', ' ')}
                         </span>
                       </td>
-                      <td className="px-4 py-3 border-r border-slate-200 text-slate-500">
+                      <td className="px-4 py-3 border-r border-[var(--border-base)] text-[var(--text-muted-more)]">
                         {new Date(device.created_at).toLocaleDateString()}
                       </td>
-                      <td className="px-4 py-3 text-center text-slate-600 font-bold">
+                      <td className="px-4 py-3 text-center text-[var(--text-muted)] font-bold">
                         {device.invoice_number || '-'}
                       </td>
                     </tr>

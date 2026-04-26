@@ -253,9 +253,13 @@ export async function initSchema() {
         selling_price DECIMAL(10,2),
         color VARCHAR(100),
         gb VARCHAR(50),
+        ram VARCHAR(50),
         \`condition\` VARCHAR(100),
         po_number VARCHAR(100),
         status VARCHAR(50) DEFAULT 'in_stock',
+        unlocked VARCHAR(100) DEFAULT 'Unknown',
+        imei_status VARCHAR(100) DEFAULT 'Clean',
+        carrier VARCHAR(100) DEFAULT 'Unlocked',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE,
         FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE CASCADE,
@@ -404,6 +408,19 @@ export async function initSchema() {
         details TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (sku_id) REFERENCES product_skus(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+      )
+    `);
+
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS device_activity (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        device_id INT NOT NULL,
+        user_id INT,
+        activity VARCHAR(255) NOT NULL,
+        details TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (device_id) REFERENCES devices(id) ON DELETE CASCADE,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
       )
     `);
@@ -685,6 +702,65 @@ export async function initSchema() {
       console.log('[MySQL] Migration: added notes column to jobs');
     } catch (e: any) {
       if (!e.message?.includes('Duplicate column')) throw e;
+    }
+
+    // 1. Ensure requested tables exist
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS activity_logs (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        product_id INT,
+        device_id INT,
+        activity_type VARCHAR(50) NOT NULL,
+        description TEXT,
+        reference_link VARCHAR(50),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL,
+        FOREIGN KEY (device_id) REFERENCES devices(id) ON DELETE SET NULL,
+        INDEX idx_log_product (product_id),
+        INDEX idx_log_device (device_id)
+      )
+    `);
+
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS pos_sales (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        total_amount DECIMAL(10, 2)
+      )
+    `);
+
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS pos_items (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        sale_id INT,
+        device_id INT,
+        final_price DECIMAL(10, 2),
+        FOREIGN KEY (sale_id) REFERENCES pos_sales(id),
+        FOREIGN KEY (device_id) REFERENCES devices(id)
+      )
+    `);
+
+    // 2. Ensure existing products table has requested fields
+    try {
+      await conn.query('ALTER TABLE products ADD COLUMN sku_barcode VARCHAR(50) UNIQUE AFTER id');
+      await conn.query('ALTER TABLE products ADD COLUMN base_unit_price DECIMAL(10, 2) DEFAULT 0.00 AFTER name');
+      await conn.query('ALTER TABLE products ADD COLUMN cost_price DECIMAL(10, 2) DEFAULT 0.00 AFTER base_unit_price');
+      await conn.query('ALTER TABLE products ADD COLUMN category VARCHAR(100) AFTER cost_price');
+      console.log('[MySQL] Migration: added sku_barcode, price fields to products');
+    } catch (e: any) {
+      if (!e.message?.includes('Duplicate column')) throw e;
+    }
+
+    // 3. Ensure existing devices table has requested fields
+    try {
+      await conn.query('ALTER TABLE devices ADD COLUMN product_id INT AFTER id');
+      await conn.query('ALTER TABLE devices ADD COLUMN imei_serial VARCHAR(50) UNIQUE AFTER product_id');
+      await conn.query('ALTER TABLE devices ADD COLUMN date_added TIMESTAMP DEFAULT CURRENT_TIMESTAMP AFTER carrier');
+      await conn.query('ALTER TABLE devices ADD CONSTRAINT fk_devices_product_id FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE');
+      console.log('[MySQL] Migration: added product_id, imei_serial, date_added to devices');
+    } catch (e: any) {
+      if (!e.message?.includes('Duplicate column') && !e.message?.includes('Duplicate key')) throw e;
     }
 
     await conn.query('SET FOREIGN_KEY_CHECKS = 1');

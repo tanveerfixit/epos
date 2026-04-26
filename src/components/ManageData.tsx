@@ -377,42 +377,134 @@ function ExportDataView() {
 }
 
 function SuppliersView() {
+  const [suppliers, setSuppliers] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [formData, setFormData] = React.useState({ name: '', email: '', phone: '', contact_person: '' });
+  const [isSaving, setIsSaving] = React.useState(false);
+
+  const fetchSuppliers = async () => {
+    try {
+      const res = await fetch('/api/suppliers');
+      const data = await res.json();
+      setSuppliers(data);
+    } catch (error) {
+      console.error('Error fetching suppliers:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchSuppliers();
+  }, []);
+
+  const handleSave = async () => {
+    if (!formData.name) return alert('Supplier name is required');
+    setIsSaving(true);
+    try {
+      const res = await fetch('/api/suppliers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+      if (res.ok) {
+        setFormData({ name: '', email: '', phone: '', contact_person: '' });
+        fetchSuppliers();
+      } else {
+        alert('Failed to save supplier');
+      }
+    } catch (error) {
+      console.error('Error saving supplier:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this supplier?')) return;
+    try {
+      const res = await fetch(`/api/suppliers/${id}`, { method: 'DELETE' });
+      if (res.ok) fetchSuppliers();
+      else alert('Failed to delete supplier');
+    } catch (error) {
+      console.error('Error deleting supplier:', error);
+    }
+  };
+
   return (
     <ManagementPageTemplate
       title="Manage Suppliers"
       description="Maintain a comprehensive list of your product suppliers and service providers. Track contact information, email addresses, and phone numbers to streamline your procurement process."
       createButtonLabel="Create Supplier"
-      tableHeaders={['Name', 'Email', 'Contact No']}
+      tableHeaders={['Name', 'Email', 'Contact No', 'Actions']}
       renderTableRows={() => (
         <>
-          <tr className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-            <td className="py-4 px-4 font-bold text-slate-700">Tech Distributors Ltd</td>
-            <td className="py-4 px-4 text-slate-500">sales@techdist.com</td>
-            <td className="py-4 px-4 text-slate-500 font-mono">+353 1 234 5678</td>
-          </tr>
-          <tr className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-            <td className="py-4 px-4 font-bold text-slate-700">Global Parts Co.</td>
-            <td className="py-4 px-4 text-slate-500">info@globalparts.ie</td>
-            <td className="py-4 px-4 text-slate-500 font-mono">+353 21 987 6543</td>
-          </tr>
+          {loading ? (
+            <tr><td colSpan={4} className="py-8 text-center text-slate-400">Loading...</td></tr>
+          ) : suppliers.length === 0 ? (
+            <tr><td colSpan={4} className="py-8 text-center text-slate-400">No suppliers found.</td></tr>
+          ) : (
+            suppliers.map(s => (
+              <tr key={s.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                <td className="py-4 px-4 font-bold text-slate-700">{s.name}</td>
+                <td className="py-4 px-4 text-slate-500">{s.email || '-'}</td>
+                <td className="py-4 px-4 text-slate-500 font-mono">{s.phone || '-'}</td>
+                <td className="py-4 px-4">
+                  <button onClick={() => handleDelete(s.id)} className="text-red-500 hover:text-red-700 text-xs font-bold uppercase">Delete</button>
+                </td>
+              </tr>
+            ))
+          )}
         </>
       )}
       renderSidePanel={() => (
         <div className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Supplier Name</label>
-            <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-md px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all" placeholder="Enter supplier name" />
+            <input 
+              type="text" 
+              className="w-full bg-slate-50 border border-slate-200 rounded-md px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all" 
+              placeholder="Enter supplier name"
+              value={formData.name}
+              onChange={e => setFormData({ ...formData, name: e.target.value })}
+            />
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Email Address</label>
-            <input type="email" className="w-full bg-slate-50 border border-slate-200 rounded-md px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all" placeholder="Enter email" />
+            <input 
+              type="email" 
+              className="w-full bg-slate-50 border border-slate-200 rounded-md px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all" 
+              placeholder="Enter email"
+              value={formData.email}
+              onChange={e => setFormData({ ...formData, email: e.target.value })}
+            />
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Contact Number</label>
-            <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-md px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all" placeholder="Enter phone number" />
+            <input 
+              type="text" 
+              className="w-full bg-slate-50 border border-slate-200 rounded-md px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all" 
+              placeholder="Enter phone number"
+              value={formData.phone}
+              onChange={e => setFormData({ ...formData, phone: e.target.value })}
+            />
           </div>
-          <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-md transition-all shadow-lg shadow-blue-100 mt-4">
-            Save Supplier
+          <div>
+            <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Contact Person</label>
+            <input 
+              type="text" 
+              className="w-full bg-slate-50 border border-slate-200 rounded-md px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all" 
+              placeholder="Enter contact person"
+              value={formData.contact_person}
+              onChange={e => setFormData({ ...formData, contact_person: e.target.value })}
+            />
+          </div>
+          <button 
+            onClick={handleSave}
+            disabled={isSaving}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-md transition-all shadow-lg shadow-blue-100 mt-4 disabled:bg-slate-300"
+          >
+            {isSaving ? 'Saving...' : 'Save Supplier'}
           </button>
         </div>
       )}

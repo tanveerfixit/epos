@@ -33,7 +33,7 @@ export const CustomerSelector: React.FC<CustomerSelectorProps> = ({
         {!selectedCustomer && (
           <button 
             onClick={onOpenNewCustomerModal}
-            className="text-[10px] font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 uppercase tracking-wider"
+            className="text-[10px] font-bold text-[var(--brand-primary)] hover:text-[var(--brand-primary-hover)] flex items-center gap-1 uppercase tracking-wider"
           >
             <UserPlus size={12} />
             New
@@ -42,19 +42,19 @@ export const CustomerSelector: React.FC<CustomerSelectorProps> = ({
       </div>
 
       {selectedCustomer ? (
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/40 rounded-md p-3 flex justify-between items-center animate-in fade-in slide-in-from-top-1">
+        <div className="bg-[var(--bg-hover)] border border-[var(--brand-primary)] rounded-md p-3 flex justify-between items-center animate-in fade-in slide-in-from-top-1">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
+            <div className="w-10 h-10 bg-[var(--brand-primary)] rounded-full flex items-center justify-center text-white font-bold">
               {selectedCustomer.first_name?.[0] || selectedCustomer.name?.[0] || '?'}
             </div>
             <div>
-              <p className="font-bold text-blue-900 dark:text-blue-200 text-sm">
+              <p className="font-bold text-[var(--text-main)] text-sm">
                 {selectedCustomer.first_name ? `${selectedCustomer.first_name} ${selectedCustomer.last_name}` : selectedCustomer.name}
               </p>
               <div className="flex items-center gap-2">
-                <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">{selectedCustomer.phone}</p>
+                <p className="text-xs text-[var(--brand-primary)] font-medium">{selectedCustomer.phone}</p>
                 {selectedCustomer.wallet_balance !== undefined && (
-                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/20 px-1.5 py-0.5 rounded border border-emerald-100 dark:border-emerald-900/40">
+                  <span className="text-[10px] font-bold text-[var(--brand-success)] bg-[var(--bg-zebra)] px-1.5 py-0.5 rounded border border-[var(--brand-success)]">
                     Wallet: €{selectedCustomer.wallet_balance.toFixed(2)}
                   </span>
                 )}
@@ -65,7 +65,7 @@ export const CustomerSelector: React.FC<CustomerSelectorProps> = ({
             {selectedCustomer.name !== 'Walk-in Customer' && onOpenDepositModal && (
               <button 
                 onClick={onOpenDepositModal}
-                className="p-1.5 text-emerald-600 hover:bg-emerald-100 rounded-lg transition-all"
+                className="p-1.5 text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all"
                 title="Deposit to Wallet"
               >
                 <Plus size={16} />
@@ -73,7 +73,7 @@ export const CustomerSelector: React.FC<CustomerSelectorProps> = ({
             )}
             <button 
               onClick={onClearCustomer}
-              className="p-1.5 text-blue-400 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-all"
+              className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
             >
               <X size={16} />
             </button>
@@ -94,9 +94,9 @@ export const CustomerSelector: React.FC<CustomerSelectorProps> = ({
           
           {customerSearch && customerResults.length > 0 && (
             <div className="absolute z-20 left-0 right-0 mt-1 bg-[var(--bg-card)] rounded-md shadow-xl border border-[var(--border-base)] max-h-[200px] overflow-y-auto">
-              {customerResults.map(customer => (
+              {customerResults.map((customer, idx) => (
                 <button
-                  key={customer.id}
+                  key={`${customer.id}-${idx}`}
                   onClick={() => onSelectCustomer(customer)}
                   className="w-full text-left p-3 hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-3 border-b border-[var(--border-base)] last:border-0"
                 >

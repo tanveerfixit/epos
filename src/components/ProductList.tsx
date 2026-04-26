@@ -26,7 +26,7 @@ export default function ProductList({
         <h2 className="text-xl font-medium text-[var(--text-main)]">Manage Products</h2>
         <button 
           onClick={onCreateProduct}
-          className="bg-[#f1c40f] hover:bg-[#d4ac0d] text-slate-900 font-bold py-1.5 px-4 rounded text-sm flex items-center gap-2 transition-all shadow-sm"
+          className="bg-[var(--brand-warning)] hover:opacity-90 text-slate-900 font-bold py-1.5 px-4 rounded text-sm flex items-center gap-2 transition-all shadow-sm"
         >
           <Plus size={16} />
           Create Product
@@ -34,14 +34,14 @@ export default function ProductList({
       </div>
 
       <div className="p-4 flex flex-wrap gap-2 items-center bg-[var(--bg-card)] border-b border-[var(--border-base)]">
-        <select className="bg-[var(--bg-card)] border border-[var(--border-base)] rounded px-3 py-1.5 text-sm text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[#3498db] w-48">
+        <select className="bg-[var(--bg-card)] border border-[var(--border-base)] rounded px-3 py-1.5 text-sm text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-primary)] w-48">
           <option>All Products</option>
         </select>
-        <select className="bg-[var(--bg-card)] border border-[var(--border-base)] rounded px-3 py-1.5 text-sm text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[#3498db] w-48">
+        <select className="bg-[var(--bg-card)] border border-[var(--border-base)] rounded px-3 py-1.5 text-sm text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-primary)] w-48">
           <option>All Manufacturers</option>
           {manufacturers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
         </select>
-        <select className="bg-[var(--bg-card)] border border-[var(--border-base)] rounded px-3 py-1.5 text-sm text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[#3498db] w-48">
+        <select className="bg-[var(--bg-card)] border border-[var(--border-base)] rounded px-3 py-1.5 text-sm text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-primary)] w-48">
           <option>All Categories</option>
           {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
@@ -50,7 +50,7 @@ export default function ProductList({
           <input
             type="text"
             placeholder="Search Products"
-            className="w-full pl-3 pr-10 py-1.5 bg-[var(--bg-card)] border border-[var(--border-base)] rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#3498db] text-[var(--text-main)]"
+            className="w-full pl-3 pr-10 py-1.5 bg-[var(--bg-card)] border border-[var(--border-base)] rounded text-sm focus:outline-none focus:ring-1 focus:ring-[var(--brand-primary)] text-[var(--text-main)]"
           />
           <div className="absolute right-0 top-0 h-full w-10 flex items-center justify-center bg-[var(--bg-app)] border-l border-[var(--border-base)] rounded-r cursor-pointer hover:bg-[var(--bg-hover)]">
             <Search size={16} className="text-[var(--text-muted)]" />
@@ -86,7 +86,7 @@ export default function ProductList({
                     <div className="flex items-center justify-between">
                       <span className="text-[var(--text-muted)]">{product.category_name || ''}</span>
                       {product.category_name && (
-                        <button className="p-1 bg-slate-600 dark:bg-slate-700 text-white rounded-sm hover:bg-slate-700 dark:hover:bg-slate-600">
+                        <button className="p-1 bg-[var(--bg-sidebar)] text-white rounded-sm hover:opacity-90 transition-opacity">
                           <div className="flex gap-0.5">
                             <div className="w-0.5 h-0.5 bg-white rounded-full"></div>
                             <div className="w-0.5 h-0.5 bg-white rounded-full"></div>
@@ -100,7 +100,7 @@ export default function ProductList({
                     €{product.selling_price.toFixed(2)}
                   </td>
                   <td className="px-4 py-2 text-center">
-                    <span className={`font-bold text-xs ${product.total_stock && product.total_stock > 0 ? 'text-green-600' : 'text-red-500'}`}>
+                    <span className={`font-bold text-xs ${product.total_stock && product.total_stock > 0 ? 'text-[var(--brand-success)]' : 'text-[var(--brand-danger)]'}`}>
                       {product.total_stock || 0}
                     </span>
                   </td>
@@ -122,7 +122,7 @@ export default function ProductList({
         
         <div className="flex items-center gap-1">
           <button className="px-2 py-1 border border-[var(--border-base)] rounded hover:bg-[var(--bg-app)]">«</button>
-          <button className="px-3 py-1 bg-[#3498db] text-white rounded font-bold">1</button>
+          <button className="px-3 py-1 bg-[var(--brand-primary)] text-white rounded font-bold">1</button>
           <button className="px-3 py-1 border border-[var(--border-base)] rounded hover:bg-[var(--bg-app)]">2</button>
           <span className="px-2">..</span>
           <button className="px-3 py-1 border border-[var(--border-base)] rounded hover:bg-[var(--bg-app)]">139</button>

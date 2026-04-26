@@ -40,12 +40,12 @@ export default function RepairList({ preSelectedCustomerId }: RepairListProps) {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'new':        return 'bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-900/40';
-      case 'diagnosed':  return 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-900/40';
-      case 'repairing':  return 'bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-900/40';
-      case 'completed':  return 'bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/40';
-      case 'collected':  return 'bg-slate-100 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700';
-      default:           return 'bg-slate-100 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700';
+      case 'new':        return 'bg-[var(--bg-zebra)] text-[var(--text-main)] border-[var(--border-header)]';
+      case 'diagnosed':  return 'bg-[var(--bg-hover)] text-[var(--brand-primary)] border-[var(--brand-primary)]';
+      case 'repairing':  return 'bg-[var(--bg-hover)] text-purple-700 border-purple-300';
+      case 'completed':  return 'bg-emerald-100 text-emerald-700 border-emerald-300';
+      case 'collected':  return 'bg-[var(--bg-accent-subtle)] text-[var(--text-muted)] border-[var(--border-header)]';
+      default:           return 'bg-[var(--bg-zebra)] text-[var(--text-muted-more)] border-[var(--border-header)]';
     }
   };
 
@@ -56,18 +56,18 @@ export default function RepairList({ preSelectedCustomerId }: RepairListProps) {
         <h2 className="text-xl font-medium text-[var(--text-main)]">Repair Jobs</h2>
         <div className="flex gap-2">
           <div className="relative w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted-more)]" size={16} />
             <input
               type="text"
               placeholder="Search ID, model, customer..."
-              className="w-full pl-10 pr-4 py-1.5 bg-[var(--bg-card)] border border-[var(--border-base)] rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#3498db] text-[var(--text-main)]"
+              className="w-full pl-10 pr-4 py-1.5 bg-[var(--bg-card)] border border-[var(--border-base)] rounded text-sm focus:outline-none focus:ring-1 focus:ring-[var(--brand-primary)] text-[var(--text-main)]"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
             />
           </div>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="bg-[#3498db] hover:bg-[#2980b9] text-white font-medium py-1.5 px-4 rounded text-sm flex items-center gap-2 transition-all"
+            className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white font-medium py-1.5 px-4 rounded text-sm flex items-center gap-2 transition-all"
           >
             <Plus size={16} />
             New Repair Job
@@ -127,7 +127,7 @@ export default function RepairList({ preSelectedCustomerId }: RepairListProps) {
                 <td className="px-4 py-2 text-center">
                   <button 
                     onClick={() => setSelectedRepair(repair)}
-                    className="text-[#3498db] hover:underline font-medium text-xs"
+                    className="text-[var(--brand-primary)] hover:underline font-medium text-xs"
                   >
                     Update
                   </button>

@@ -21,7 +21,7 @@ export default function ThermalReceipt({ invoice, settings, company }: Props) {
 
   return (
     <div 
-      className="thermal-receipt bg-white text-black mx-auto" 
+      className="thermal-receipt bg-[var(--bg-card)] text-[var(--text-main)] mx-auto" 
       id="thermal-receipt"
       style={{ 
         fontFamily: settings.font_family,
@@ -57,6 +57,8 @@ export default function ThermalReceipt({ invoice, settings, company }: Props) {
             box-sizing: border-box;
             word-break: break-word;
             overflow-wrap: break-word;
+            background: white !important;
+            color: black !important;
           }
           #thermal-receipt table {
             width: 100%;
@@ -102,7 +104,7 @@ export default function ThermalReceipt({ invoice, settings, company }: Props) {
       <div className="text-center mb-3">
         {settings.show_logo && (
           <div className="flex justify-center mb-2">
-            <div className="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center text-[9px] text-slate-400">
+            <div className="w-10 h-10 bg-[var(--bg-accent-subtle)] rounded-full flex items-center justify-center text-[9px] text-[var(--text-muted-more)]">
               LOGO
             </div>
           </div>
@@ -113,7 +115,7 @@ export default function ThermalReceipt({ invoice, settings, company }: Props) {
         {settings.show_business_email && <div style={{ fontSize: '0.9em' }}>{company.email}</div>}
       </div>
       
-      <div style={{ borderBottom: '1px dashed #000', marginBottom: '6px', paddingBottom: '6px' }}>
+      <div style={{ borderBottom: '1px dashed var(--border-dashed)', marginBottom: '6px', paddingBottom: '6px' }}>
         {settings.show_date && <div>Date: {new Date(invoice.created_at || now).toLocaleString()}</div>}
         {settings.show_invoice_number && <div>Invoice: {invoice.invoice_number}</div>}
         {settings.show_customer_info && <div>Customer: {invoice.customer?.name || 'Walk-in'}</div>}
@@ -122,21 +124,21 @@ export default function ThermalReceipt({ invoice, settings, company }: Props) {
       {settings.show_items_table && (
         <table style={{ marginBottom: '6px' }}>
           <thead>
-            <tr style={{ borderBottom: '1px dashed #000' }}>
+            <tr style={{ borderBottom: '1px dashed var(--border-dashed)' }}>
               <th className="col-item" style={{ textAlign: 'left', paddingBottom: '3px' }}>Item</th>
               <th className="col-qty" style={{ textAlign: 'right', paddingBottom: '3px' }}>Qty</th>
               <th className="col-price" style={{ textAlign: 'right', paddingBottom: '3px' }}>Price</th>
             </tr>
           </thead>
           <tbody>
-            {invoice.items.map((item, idx) => (
+            {(invoice.items || []).map((item, idx) => (
               <tr key={idx}>
                 <td className="col-item" style={{ paddingTop: '2px' }} title={item.product_name}>
                   {item.product_name}
-                  {item.imei && <div style={{ fontSize: '0.75em', color: '#555' }}>IMEI: {item.imei}</div>}
+                  {item.imei && <div style={{ fontSize: '0.75em', color: 'var(--text-muted)' }}>IMEI: {item.imei}</div>}
                 </td>
                 <td className="col-qty" style={{ paddingTop: '2px' }}>{item.quantity}</td>
-                <td className="col-price" style={{ paddingTop: '2px' }}>€{item.total.toFixed(2)}</td>
+                <td className="col-price" style={{ paddingTop: '2px' }}>€{(item.total || 0).toFixed(2)}</td>
               </tr>
             ))}
           </tbody>
@@ -144,7 +146,7 @@ export default function ThermalReceipt({ invoice, settings, company }: Props) {
       )}
       
       {settings.show_totals && (
-        <div style={{ borderTop: '1px dashed #000', paddingTop: '6px', marginBottom: '8px' }}>
+        <div style={{ borderTop: '1px dashed var(--border-dashed)', paddingTop: '6px', marginBottom: '8px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <span>Subtotal:</span>
             <span>€{invoice.subtotal.toFixed(2)}</span>
@@ -153,7 +155,7 @@ export default function ThermalReceipt({ invoice, settings, company }: Props) {
             <span>Tax (0%):</span>
             <span>€{invoice.tax_total.toFixed(2)}</span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '1.15em', marginTop: '4px', borderTop: '1px solid #000', paddingTop: '4px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '1.15em', marginTop: '4px', borderTop: '1px solid var(--text-main)', paddingTop: '4px' }}>
             <span>TOTAL:</span>
             <span>€{invoice.grand_total.toFixed(2)}</span>
           </div>
@@ -164,7 +166,7 @@ export default function ThermalReceipt({ invoice, settings, company }: Props) {
             </div>
           )}
           {(invoice.due_amount || 0) > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', color: '#cc0000' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', color: 'var(--text-danger)' }}>
               <span>DUE:</span>
               <span>€{(invoice.due_amount || 0).toFixed(2)}</span>
             </div>
@@ -178,21 +180,20 @@ export default function ThermalReceipt({ invoice, settings, company }: Props) {
           {invoice.payments.map((p, idx) => (
             <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9em' }}>
               <span>{p.method}</span>
-              <span>€{p.amount.toFixed(2)}</span>
+              <span>€{(p.amount || 0).toFixed(2)}</span>
             </div>
           ))}
         </div>
       )}
       
       {settings.show_footer && (
-        <div style={{ textAlign: 'center', marginTop: '12px', borderTop: '1px dashed #000', paddingTop: '8px', fontSize: '0.9em', fontStyle: 'italic' }}>
+        <div style={{ textAlign: 'center', marginTop: '12px', borderTop: '1px dashed var(--border-dashed)', paddingTop: '8px', fontSize: '0.9em', fontStyle: 'italic' }}>
           {settings.footer_text}
         </div>
       )}
-
-      <div style={{ textAlign: 'center', marginTop: '8px', fontSize: '0.7em', color: '#aaa' }}>
+<div style={{ textAlign: 'center', marginTop: '8px', fontSize: '0.7em', color: 'var(--text-muted-more)' }}>
         Powered by iCover EPOS
       </div>
-    </div>
+      </div>
   );
 }

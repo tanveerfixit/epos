@@ -9,6 +9,19 @@ interface CartTableProps {
   onUpdatePrice: (id: number, newPrice: number, deviceId?: number) => void;
   onRemove: (id: number, deviceId?: number) => void;
   onOpenImeiSelector: (product: any) => void;
+  onEdit: (item: CartItem) => void;
+  onSelectProduct?: (id: number) => void;
+}
+
+interface CartRowProps {
+  item: CartItem;
+  index: number;
+  onUpdateQuantity: (id: number, delta: number, deviceId?: number) => void;
+  onUpdatePrice: (id: number, newPrice: number, deviceId?: number) => void;
+  onRemove: (id: number, deviceId?: number) => void;
+  onOpenImeiSelector: (product: any) => void;
+  onEdit: (item: CartItem) => void;
+  onSelectProduct?: (id: number) => void;
 }
 
 export const CartTable: React.FC<CartTableProps> = ({
@@ -16,13 +29,15 @@ export const CartTable: React.FC<CartTableProps> = ({
   onUpdateQuantity,
   onUpdatePrice,
   onRemove,
-  onOpenImeiSelector
+  onOpenImeiSelector,
+  onEdit,
+  onSelectProduct
 }) => {
   return (
     <div className="bg-[var(--bg-card)] border border-[var(--border-base)] overflow-hidden flex-1 flex flex-col min-h-0">
       <div className="px-4 py-2 border-b border-[var(--border-base)] bg-[var(--bg-header)] flex justify-between items-center">
-        <h2 className="text-[10px] font-black text-black dark:text-black uppercase tracking-widest">Current Cart</h2>
-        <span className="text-[10px] font-bold text-black dark:text-black uppercase tracking-widest">
+        <h2 className="text-[10px] font-black text-[var(--text-main)] uppercase tracking-widest">Current Cart</h2>
+        <span className="text-[10px] font-bold text-[var(--text-main)] uppercase tracking-widest">
           {cart.reduce((sum, item) => sum + item.quantity, 0)} Items
         </span>
       </div>
@@ -35,13 +50,15 @@ export const CartTable: React.FC<CartTableProps> = ({
           </div>
         ) : (
           <table className="w-full border-collapse">
-            <thead className="sticky top-0 bg-[var(--bg-card)] z-10">
-              <tr className="text-left text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest border-b border-[var(--border-base)]">
-                <th className="py-3 pl-4">Product Details</th>
-                <th className="py-3 text-right">Price</th>
-                <th className="py-3 text-center">Qty</th>
-                <th className="py-3 text-right">Total</th>
-                <th className="py-3 pr-4 text-right"></th>
+            <thead className="sticky top-0 bg-[var(--bg-app)] border-b border-[var(--border-base)] z-10">
+              <tr className="bg-[var(--bg-app)] border-b border-[var(--border-base)] text-[11px] font-bold text-[var(--text-main)] uppercase tracking-wider">
+                <th className="py-2 pl-3 text-center w-12">#</th>
+                <th className="py-2 px-3 text-left">Description</th>
+                <th className="py-2 px-3 text-center w-32">Inventory</th>
+                <th className="py-2 px-3 text-center w-32">Qty</th>
+                <th className="py-2 px-3 text-right w-28">Price</th>
+                <th className="py-2 px-3 text-right w-28">Total</th>
+                <th className="py-2 pr-3 text-right w-24">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border-base)]">
@@ -49,10 +66,13 @@ export const CartTable: React.FC<CartTableProps> = ({
                 <CartRow 
                   key={`${item.id}-${item.device_id || idx}`}
                   item={item}
+                  index={idx}
                   onUpdateQuantity={onUpdateQuantity}
                   onUpdatePrice={onUpdatePrice}
                   onRemove={onRemove}
                   onOpenImeiSelector={onOpenImeiSelector}
+                  onEdit={onEdit}
+                  onSelectProduct={onSelectProduct}
                 />
               ))}
             </tbody>

@@ -104,7 +104,7 @@ export default function InvoiceList({ onSelectInvoice, onSelectCustomer }: Props
           <select 
             value={dateRange}
             onChange={(e) => setDateRange(e.target.value as any)}
-            className="bg-[var(--bg-card)] border border-[var(--border-base)] rounded px-3 py-1.5 text-sm text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[#3498db] w-48 h-9"
+            className="bg-[var(--bg-card)] border border-[var(--border-base)] rounded px-3 py-1.5 text-sm text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-primary)] w-48 h-9"
           >
             <option value="today">Today</option>
             <option value="yesterday">Yesterday</option>
@@ -119,20 +119,20 @@ export default function InvoiceList({ onSelectInvoice, onSelectCustomer }: Props
                 type="date"
                 value={customStart}
                 onChange={(e) => setCustomStart(e.target.value)}
-                className="bg-[var(--bg-card)] border border-[var(--border-base)] rounded px-2 py-1.5 text-sm text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[#3498db] h-9"
+                className="bg-[var(--bg-card)] border border-[var(--border-base)] rounded px-2 py-1.5 text-sm text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-primary)] h-9"
               />
               <span className="text-[var(--text-muted)] text-sm">to</span>
               <input 
                 type="date"
                 value={customEnd}
                 onChange={(e) => setCustomEnd(e.target.value)}
-                className="bg-[var(--bg-card)] border border-[var(--border-base)] rounded px-2 py-1.5 text-sm text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[#3498db] h-9"
+                className="bg-[var(--bg-card)] border border-[var(--border-base)] rounded px-2 py-1.5 text-sm text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-primary)] h-9"
               />
             </div>
           )}
         </div>
 
-        <select className="bg-[var(--bg-card)] border border-[var(--border-base)] rounded px-3 py-1.5 text-sm text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[#3498db] w-48 h-9 opacity-50 cursor-not-allowed">
+        <select className="bg-[var(--bg-card)] border border-[var(--border-base)] rounded px-3 py-1.5 text-sm text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-primary)] w-48 h-9 opacity-50 cursor-not-allowed">
           <option>All Types</option>
         </select>
         
@@ -142,7 +142,7 @@ export default function InvoiceList({ onSelectInvoice, onSelectCustomer }: Props
             placeholder="Search Customer or Invoice"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-3 pr-10 py-1.5 bg-[var(--bg-card)] border border-[var(--border-base)] rounded text-sm focus:outline-none focus:ring-1 focus:ring-[#3498db] h-9 text-[var(--text-main)]"
+            className="w-full pl-3 pr-10 py-1.5 bg-[var(--bg-card)] border border-[var(--border-base)] rounded text-sm focus:outline-none focus:ring-1 focus:ring-[var(--brand-primary)] h-9 text-[var(--text-main)]"
           />
           <button className="absolute right-3 top-1/2 -translate-y-1/2">
             <Search size={16} className="text-[var(--text-muted)]" />
@@ -171,14 +171,14 @@ export default function InvoiceList({ onSelectInvoice, onSelectCustomer }: Props
                 <tr>
                   <td colSpan={9} className="py-20 text-center">
                     <div className="flex flex-col items-center gap-3">
-                      <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                      <p className="text-sm text-slate-400">Loading invoices...</p>
+                      <div className="w-8 h-8 border-4 border-[var(--brand-primary)] border-t-transparent rounded-full animate-spin"></div>
+                      <p className="text-sm text-[var(--text-muted)]">Loading invoices...</p>
                     </div>
                   </td>
                 </tr>
               ) : filteredInvoices.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-20 text-center text-slate-400 italic text-sm">No invoices found for the selected period.</td>
+                  <td colSpan={9} className="py-20 text-center text-[var(--text-muted)] italic text-sm">No invoices found for the selected period.</td>
                 </tr>
               ) : (
                 filteredInvoices.map((invoice, idx) => (
@@ -197,7 +197,7 @@ export default function InvoiceList({ onSelectInvoice, onSelectCustomer }: Props
                             e.stopPropagation();
                             onSelectCustomer?.(invoice.customer_id!);
                           }}
-                          className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
+                          className="text-[var(--brand-primary)] hover:underline font-medium"
                         >
                           {invoice.customer_name}
                         </button>
@@ -228,7 +228,7 @@ export default function InvoiceList({ onSelectInvoice, onSelectCustomer }: Props
         
         <div className="flex items-center gap-1">
           <button className="px-2 py-1 border border-[var(--border-base)] rounded hover:bg-[var(--bg-app)]">«</button>
-          <button className="px-3 py-1 bg-[#3498db] text-white rounded font-bold">1</button>
+          <button className="px-3 py-1 bg-[var(--brand-primary)] text-white rounded font-bold">1</button>
           <button className="px-2 py-1 border border-[var(--border-base)] rounded hover:bg-[var(--bg-app)]">»</button>
         </div>
       </div>

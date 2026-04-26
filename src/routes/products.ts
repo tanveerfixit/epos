@@ -27,49 +27,75 @@ router.get('/', async (req: any, res) => {
 });
 
 // GET /api/products/special/get-deposit-product
+// SENIOR: Implementation using a robust 'Find-or-Create' pattern to handle race conditions
 router.get('/special/get-deposit-product', async (req: any, res) => {
-  const businessId = req.user.business_id;
-  const conn = await pool.getConnection();
-  try {
-    const depositSkuCode = 'DEPOSIT-WALLET';
-    const [existingSkus] = await conn.execute(`
+  const businessId = req.user?.business_id;
+  if (!businessId) return res.status(401).json({ error: 'Business context missing' });
+
+  const depositSkuCode = `DEPOSIT-WALLET-${businessId}`;
+  
+  const findProduct = async () => {
+    return await queryOne(`
       SELECT s.id as sku_id, p.id as product_id, p.name as product_name, s.sku_code, s.selling_price
       FROM product_skus s
       JOIN products p ON s.product_id = p.id
       WHERE s.sku_code = ? AND p.business_id = ?
     `, [depositSkuCode, businessId]);
+  };
 
-    let skuInfo = (existingSkus as any[])[0];
+  try {
+    // 1. Initial attempt to find existing
+    let skuInfo = await findProduct();
+    if (skuInfo) return res.json(skuInfo);
 
-    if (!skuInfo) {
+    // 2. Not found, attempt creation with atomic transaction
+    const conn = await pool.getConnection();
+    try {
       await conn.beginTransaction();
+      
+      // Re-verify inside transaction to be safe against race conditions
+      const [check] = await conn.execute('SELECT id FROM product_skus WHERE sku_code = ?', [depositSkuCode]);
+      if ((check as any[]).length > 0) {
+        await conn.rollback();
+        skuInfo = await findProduct();
+        return res.json(skuInfo);
+      }
+
       const [pr] = await conn.execute(
         'INSERT INTO products (business_id,name,product_type,allow_overselling) VALUES (?,?,?,?)',
         [businessId, 'Wallet Deposit', 'service', 1]
       );
       const productId = (pr as any).insertId;
+      
       const [sr] = await conn.execute(
         'INSERT INTO product_skus (product_id,sku_code,barcode,cost_price,selling_price) VALUES (?,?,?,?,?)',
         [productId, depositSkuCode, depositSkuCode, 0, 0]
       );
       const skuId = (sr as any).insertId;
+      
       await conn.commit();
-
-      skuInfo = {
+      
+      return res.json({
         sku_id: skuId,
         product_id: productId,
         product_name: 'Wallet Deposit',
         sku_code: depositSkuCode,
         selling_price: 0
-      };
+      });
+    } catch (innerErr: any) {
+      await conn.rollback().catch(() => {});
+      // If insertion failed due to duplicate (someone else created it just now)
+      if (innerErr.code === 'ER_DUP_ENTRY') {
+        skuInfo = await findProduct();
+        if (skuInfo) return res.json(skuInfo);
+      }
+      throw innerErr;
+    } finally {
+      conn.release();
     }
-
-    res.json(skuInfo);
   } catch (e: any) {
-    if (conn) await conn.rollback().catch(() => {});
-    res.status(500).json({ error: e.message });
-  } finally {
-    if (conn) conn.release();
+    console.error('[DepositProduct] Error:', e.message);
+    res.status(500).json({ error: e.message || 'Failed to initialize deposit product' });
   }
 });
 
@@ -114,8 +140,21 @@ router.put('/:id', async (req: any, res) => {
       [sku_code, barcode, selling_price, cost_price, skuId]);
     await conn.execute('UPDATE products SET name=?,category_id=?,manufacturer_id=?,product_type=? WHERE id=?',
       [product_name, category_id, manufacturer_id, product_type, sku.product_id]);
+    
+    const changes: string[] = [];
+    if (product_name !== sku.product_name) changes.push(`Name: ${sku.product_name} -> ${product_name}`);
+    if (selling_price != sku.selling_price) changes.push(`Price: ${sku.selling_price} -> ${selling_price}`);
+    if (cost_price != sku.cost_price) changes.push(`Cost: ${sku.cost_price} -> ${cost_price}`);
+    if (sku_code !== sku.sku_code) changes.push(`SKU: ${sku.sku_code} -> ${sku_code}`);
+
+    const detailMsg = changes.length > 0 ? changes.join(', ') : 'Details updated';
+
     await conn.execute('INSERT INTO product_activity (sku_id,user_id,activity,details) VALUES (?,?,?,?)',
-      [skuId, req.userId, 'Product Updated', 'Product details updated via edit form']);
+      [skuId, req.userId, 'Product Updated', detailMsg]);
+    
+    await conn.execute('INSERT INTO activity_logs (product_id,user_id,activity_type,description) VALUES (?,?,?,?)',
+      [skuId, req.userId, 'Product Updated', detailMsg]);
+
     await conn.commit();
     res.json({ success: true });
   } catch (e: any) {
@@ -143,6 +182,8 @@ router.post('/', async (req: any, res) => {
     );
     const skuId = (sr as any).insertId;
     await conn.execute('INSERT INTO product_activity (sku_id,user_id,activity,details) VALUES (?,?,?,?)',
+      [skuId, req.userId, 'Product Created', `Product "${name}" created with SKU ${finalSku}`]);
+    await conn.execute('INSERT INTO activity_logs (product_id,user_id,activity_type,description) VALUES (?,?,?,?)',
       [skuId, req.userId, 'Product Created', `Product "${name}" created with SKU ${finalSku}`]);
     await conn.commit();
     res.json({ id: skuId });

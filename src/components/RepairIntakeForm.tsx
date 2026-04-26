@@ -104,16 +104,16 @@ export default function RepairIntakeForm({ onClose, onSuccess, initialCustomerId
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
       <div className="bg-white rounded shadow-2xl w-full max-w-[600px] overflow-hidden flex flex-col h-full max-h-[85vh]">
         {/* Header */}
-        <div className="bg-[#e9ecef] px-4 py-3 flex justify-between items-center border-b border-slate-300 shrink-0">
-          <h3 className="text-[#333] font-bold text-lg">New Repair Job</h3>
-          <button onClick={onClose} className="text-slate-500 hover:text-slate-800 transition-colors">
+        <div className="bg-[var(--bg-accent-subtle)] px-4 py-3 flex justify-between items-center border-b border-[var(--border-header)] shrink-0">
+          <h3 className="text-[var(--text-main)] font-bold text-lg">New Repair Job</h3>
+          <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors">
             <X size={20} />
           </button>
         </div>
 
         {/* Tab Headers (Stylistic Match) */}
-        <div className="px-4 pt-4 flex gap-1 bg-white border-b border-slate-200 shrink-0">
-          <div className="px-8 py-2 text-sm font-bold border border-slate-300 border-b-0 rounded-t bg-white text-slate-800 -mb-px relative z-10">
+        <div className="px-4 pt-4 flex gap-1 bg-[var(--bg-card)] border-b border-[var(--border-base)] shrink-0">
+          <div className="px-8 py-2 text-sm font-bold border border-[var(--border-header)] border-b-0 rounded-t bg-[var(--bg-card)] text-[var(--text-main)] -mb-px relative z-10">
             Job Intake Details
           </div>
         </div>
@@ -121,15 +121,15 @@ export default function RepairIntakeForm({ onClose, onSuccess, initialCustomerId
         {/* Form Content */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-auto p-8 space-y-4">
           
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-4 border-b border-slate-100 pb-1">
+          <div className="text-[11px] font-bold text-[var(--text-muted-more)] uppercase tracking-wider mb-4 border-b border-[var(--border-base)] pb-1">
             Customer Information
           </div>
 
           <div className="flex items-center">
-            <label className="w-1/3 text-sm font-bold text-slate-700">Phone No.<span className="text-red-500">*</span></label>
+            <label className="w-1/3 text-sm font-bold text-[var(--text-main)]">Phone No.<span className="text-red-500">*</span></label>
             <div className="w-2/3 flex gap-2">
               <select 
-                className="w-24 border border-[#ced4da] rounded px-2 py-1.5 text-sm focus:border-[#80bdff] focus:outline-none"
+                className="w-24 border border-[var(--border-input)] rounded px-2 py-1.5 text-sm focus:border-[var(--brand-primary)] focus:outline-none"
                 value={formData.country_code}
                 onChange={e => setFormData({ ...formData, country_code: e.target.value })}
               >
@@ -141,7 +141,7 @@ export default function RepairIntakeForm({ onClose, onSuccess, initialCustomerId
               <input
                 required
                 type="text"
-                className="flex-1 border border-[#ced4da] rounded px-3 py-1.5 text-sm focus:border-[#80bdff] focus:outline-none focus:ring-4 focus:ring-blue-500/10"
+                className="flex-1 border border-[var(--border-input)] rounded px-3 py-1.5 text-sm focus:border-[var(--brand-primary)] focus:outline-none focus:ring-4 focus:ring-blue-500/10"
                 placeholder="08X XXX XXXX"
                 value={searchPhone}
                 onChange={e => setSearchPhone(e.target.value)}
@@ -159,11 +159,11 @@ export default function RepairIntakeForm({ onClose, onSuccess, initialCustomerId
           )}
 
           <div className="flex items-center">
-            <label className="w-1/3 text-sm font-bold text-slate-700">First Name<span className="text-red-500">*</span></label>
+            <label className="w-1/3 text-sm font-bold text-[var(--text-main)]">First Name<span className="text-red-500">*</span></label>
             <input
               required
               type="text"
-              className="w-2/3 border border-[#ced4da] rounded px-3 py-1.5 text-sm focus:border-[#80bdff] focus:outline-none focus:ring-4 focus:ring-blue-500/10 disabled:bg-slate-50"
+              className="w-2/3 border border-[var(--border-input)] rounded px-3 py-1.5 text-sm focus:border-[var(--brand-primary)] focus:outline-none focus:ring-4 focus:ring-blue-500/10 disabled:bg-[var(--bg-hover)]"
               placeholder="First Name"
               value={formData.first_name}
               onChange={e => setFormData({ ...formData, first_name: e.target.value })}
@@ -172,10 +172,10 @@ export default function RepairIntakeForm({ onClose, onSuccess, initialCustomerId
           </div>
 
           <div className="flex items-center">
-            <label className="w-1/3 text-sm font-bold text-slate-700">Last Name</label>
+            <label className="w-1/3 text-sm font-bold text-[var(--text-main)]">Last Name</label>
             <input
               type="text"
-              className="w-2/3 border border-[#ced4da] rounded px-3 py-1.5 text-sm focus:border-[#80bdff] focus:outline-none focus:ring-4 focus:ring-blue-500/10 disabled:bg-slate-50"
+              className="w-2/3 border border-[var(--border-input)] rounded px-3 py-1.5 text-sm focus:border-[var(--brand-primary)] focus:outline-none focus:ring-4 focus:ring-blue-500/10 disabled:bg-[var(--bg-hover)]"
               placeholder="Last Name"
               value={formData.last_name}
               onChange={e => setFormData({ ...formData, last_name: e.target.value })}
@@ -183,16 +183,16 @@ export default function RepairIntakeForm({ onClose, onSuccess, initialCustomerId
             />
           </div>
 
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mt-6 mb-4 border-b border-slate-100 pb-1">
+          <div className="text-[11px] font-bold text-[var(--text-muted-more)] uppercase tracking-wider mt-6 mb-4 border-b border-[var(--border-base)] pb-1">
             Device Details
           </div>
 
           <div className="flex items-center">
-            <label className="w-1/3 text-sm font-bold text-slate-700">Device Model<span className="text-red-500">*</span></label>
+            <label className="w-1/3 text-sm font-bold text-[var(--text-main)]">Device Model<span className="text-red-500">*</span></label>
             <input
               required
               type="text"
-              className="w-2/3 border border-[#ced4da] rounded px-3 py-1.5 text-sm focus:border-[#80bdff] focus:outline-none focus:ring-4 focus:ring-blue-500/10"
+              className="w-2/3 border border-[var(--border-input)] rounded px-3 py-1.5 text-sm focus:border-[var(--brand-primary)] focus:outline-none focus:ring-4 focus:ring-blue-500/10"
               placeholder="e.g. iPhone 15 Pro"
               value={formData.device_model}
               onChange={e => setFormData({ ...formData, device_model: e.target.value })}
@@ -200,29 +200,29 @@ export default function RepairIntakeForm({ onClose, onSuccess, initialCustomerId
           </div>
 
           <div className="flex items-start">
-            <label className="w-1/3 text-sm font-bold text-slate-700 pt-1">Problem Description<span className="text-red-500">*</span></label>
+            <label className="w-1/3 text-sm font-bold text-[var(--text-main)] pt-1">Problem Description<span className="text-red-500">*</span></label>
             <textarea
               required
               rows={3}
-              className="w-2/3 border border-[#ced4da] rounded px-3 py-1.5 text-sm focus:border-[#80bdff] focus:outline-none focus:ring-4 focus:ring-blue-500/10 resize-none"
+              className="w-2/3 border border-[var(--border-input)] rounded px-3 py-1.5 text-sm focus:border-[var(--brand-primary)] focus:outline-none focus:ring-4 focus:ring-blue-500/10 resize-none"
               placeholder="Describe the issue..."
               value={formData.issue}
               onChange={e => setFormData({ ...formData, issue: e.target.value })}
             />
           </div>
 
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mt-6 mb-4 border-b border-slate-100 pb-1">
+          <div className="text-[11px] font-bold text-[var(--text-muted-more)] uppercase tracking-wider mt-6 mb-4 border-b border-[var(--border-base)] pb-1">
             Quote & Payment
           </div>
 
           <div className="flex items-center">
-            <label className="w-1/3 text-sm font-bold text-slate-700">Total Quote</label>
+            <label className="w-1/3 text-sm font-bold text-[var(--text-main)]">Total Quote</label>
             <div className="w-2/3 relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">€</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted-more)] text-sm">€</span>
               <input
                 type="number"
                 step="0.01"
-                className="w-full border border-[#ced4da] rounded pl-7 pr-3 py-1.5 text-sm focus:border-[#80bdff] focus:outline-none focus:ring-4 focus:ring-blue-500/10"
+                className="w-full border border-[var(--border-input)] rounded pl-7 pr-3 py-1.5 text-sm focus:border-[var(--brand-primary)] focus:outline-none focus:ring-4 focus:ring-blue-500/10"
                 value={formData.total_quote || ''}
                 onChange={e => setFormData({ ...formData, total_quote: parseFloat(e.target.value) || 0 })}
               />
@@ -230,13 +230,13 @@ export default function RepairIntakeForm({ onClose, onSuccess, initialCustomerId
           </div>
 
           <div className="flex items-center">
-            <label className="w-1/3 text-sm font-bold text-slate-700">Deposit Paid</label>
+            <label className="w-1/3 text-sm font-bold text-[var(--text-main)]">Deposit Paid</label>
             <div className="w-2/3 relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">€</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted-more)] text-sm">€</span>
               <input
                 type="number"
                 step="0.01"
-                className="w-full border border-[#ced4da] rounded pl-7 pr-3 py-1.5 text-sm focus:border-[#80bdff] focus:outline-none focus:ring-4 focus:ring-blue-500/10"
+                className="w-full border border-[var(--border-input)] rounded pl-7 pr-3 py-1.5 text-sm focus:border-[var(--brand-primary)] focus:outline-none focus:ring-4 focus:ring-blue-500/10"
                 value={formData.deposit_paid || ''}
                 onChange={e => setFormData({ ...formData, deposit_paid: parseFloat(e.target.value) || 0 })}
               />
@@ -244,16 +244,16 @@ export default function RepairIntakeForm({ onClose, onSuccess, initialCustomerId
           </div>
 
           <div className="flex items-center">
-            <label className="w-1/3 text-sm font-bold text-slate-700">Remaining Balance</label>
+            <label className="w-1/3 text-sm font-bold text-[var(--text-main)]">Remaining Balance</label>
             <div className="w-2/3 bg-red-50 border border-red-100 rounded px-3 py-1.5 text-sm font-bold text-red-600">
               €{remainingBalance.toFixed(2)}
             </div>
           </div>
 
           <div className="flex items-center">
-            <label className="w-1/3 text-sm font-bold text-slate-700">Payment Method</label>
+            <label className="w-1/3 text-sm font-bold text-[var(--text-main)]">Payment Method</label>
             <select
-              className="w-2/3 border border-[#ced4da] rounded px-3 py-1.5 text-sm focus:border-[#80bdff] focus:outline-none focus:ring-4 focus:ring-blue-500/10"
+              className="w-2/3 border border-[var(--border-input)] rounded px-3 py-1.5 text-sm focus:border-[var(--brand-primary)] focus:outline-none focus:ring-4 focus:ring-blue-500/10"
               value={formData.payment_method}
               onChange={e => setFormData({ ...formData, payment_method: e.target.value })}
             >
@@ -266,11 +266,11 @@ export default function RepairIntakeForm({ onClose, onSuccess, initialCustomerId
         </form>
 
         {/* Footer */}
-        <div className="mt-auto px-4 py-3 border-t border-slate-200 flex justify-end gap-2 bg-[#f8f9fa] shrink-0">
+        <div className="mt-auto px-4 py-3 border-t border-[var(--border-base)] flex justify-end gap-2 bg-[var(--bg-zebra)] shrink-0">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-1.5 bg-white border border-slate-300 rounded text-slate-700 hover:bg-slate-50 text-sm font-medium transition-colors"
+            className="px-4 py-1.5 bg-[var(--bg-card)] border border-[var(--border-header)] rounded text-[var(--text-main)] hover:bg-[var(--bg-hover)] text-sm font-medium transition-colors"
           >
             Cancel
           </button>
@@ -278,7 +278,7 @@ export default function RepairIntakeForm({ onClose, onSuccess, initialCustomerId
             type="button"
             disabled={loading}
             onClick={handleSubmit}
-            className="px-6 py-1.5 bg-[#007bff] hover:bg-[#0069d9] text-white rounded text-sm font-bold transition-colors disabled:opacity-50"
+            className="px-6 py-1.5 bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white rounded text-sm font-bold transition-colors disabled:opacity-50"
           >
             {loading ? 'Saving...' : 'Create Repair Job'}
           </button>
