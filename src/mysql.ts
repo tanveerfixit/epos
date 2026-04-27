@@ -10,9 +10,9 @@ if (!process.env.DB_PASS) {
 export const pool = mysql.createPool({
   host: process.env.DB_HOST || 'srv2113.hstgr.io',
   port: Number(process.env.DB_PORT) || 3306,
-  database: process.env.DB_NAME || 'u583652021_eposdata',
-  user: process.env.DB_USER || 'u583652021_autouser',
-  password: process.env.DB_PASS || 'Tani$8877!!',
+  database: process.env.DB_NAME || 'u583652021_clare',
+  user: process.env.DB_USER || 'u583652021_clare_user',
+  password: process.env.DB_PASS || 'Tani@8877!!',
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,

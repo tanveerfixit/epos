@@ -7,9 +7,9 @@ You can use these settings in your Hostinger Node.js dashboard (Environment Vari
 |-----|-------|
 | `DB_HOST` | `127.0.0.1` |
 | `DB_PORT` | `3306` |
-| `DB_NAME` | `u583652021_eposdata` |
-| `DB_USER` | `u583652021_autouser` |
-| `DB_PASS` | `Tani$8877!!` |
+| `DB_NAME` | `u583652021_clare` |
+| `DB_USER` | `u583652021_clare_user` |
+| `DB_PASS` | `Tani@8877!!` |
 
 ### SMTP Email Settings
 | Key | Value |
