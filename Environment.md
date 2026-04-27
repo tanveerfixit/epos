@@ -17,10 +17,10 @@ You can use these settings in your Hostinger Node.js dashboard (Environment Vari
 | `SMTP_HOST` | `smtp.hostinger.com` |
 | `SMTP_PORT` | `465` |
 | `SMTP_SECURE` | `true` |
-| `SMTP_USER` | `noreply@icover.ie` |
+| `SMTP_USER` | `noreply@daft.pk` |
 | `SMTP_PASS` | `Tani$8877!!` |
-| `SMTP_FROM_NAME` | `iCover EPOS` |
-| `SMTP_FROM_EMAIL` | `noreply@icover.ie` |
+| `SMTP_FROM_NAME` | `Clare epos` |
+| `SMTP_FROM_EMAIL` | `noreply@daft.pk` |
 
 ### Application Settings
 | Key | Value |
